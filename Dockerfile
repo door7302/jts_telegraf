@@ -15,6 +15,7 @@ RUN apk update --no-cache && \
 USER 0
 RUN mkdir -p /etc/telegraf
 RUN mkdir -p /var/metadata
+RUN mkdir -p /var/cert
 RUN mkdir -p /etc/telegraf/telegraf.d 
 USER telegraf
 COPY --from=builder /build/telegraf /
