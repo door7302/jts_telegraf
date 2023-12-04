@@ -21,6 +21,6 @@ USER telegraf
 COPY --from=builder /build/telegraf /
 
 
-EXPOSE 8125/udp 8092/udp 8094 9339
+EXPOSE 50051/udp
 
 ENTRYPOINT ["./telegraf"]
