@@ -203,7 +203,7 @@ func (c *NETCONF) subscribeNETCONF(ctx context.Context, address string, u string
 			metricToSend[req.rpc][k.fieldName] = netMetric{tagLength: k.tagLength, keyTag: make([]string, 0), valueTag: make([]string, 0), keyField: "", valueField: "", send: 0}
 		}
 	}
-	c.Log.Debugf("DECODE %v", metricToSend)
+
 	// compute tick - add jitter to avoid thread sync
 	jitter := time.Duration(1000 + rand.Intn(10))
 	tick := jitter * time.Millisecond
@@ -280,6 +280,7 @@ func (c *NETCONF) subscribeNETCONF(ctx context.Context, address string, u string
 										for _, k := range data.masterKeys {
 											v, ok := metricToSend[req.rpc][k]
 											if ok {
+												c.Log.Debugf("PRINT v %v", v)
 												// Time to add the metrics to the grouper
 												if v.send == 2 {
 													// reinit the metric
@@ -307,6 +308,7 @@ func (c *NETCONF) subscribeNETCONF(ctx context.Context, address string, u string
 											v.keyTag = append(v.keyTag, data.shortName)
 											v.valueTag = append(v.valueTag, value)
 											// only add token to send variable only if we reach the number of expected tag
+											c.Log.Debugf("rpc-reply received for rpc %s and device %s", req.rpc, address)
 											if len(v.valueTag) == v.tagLength {
 												v.send += 1
 											}
