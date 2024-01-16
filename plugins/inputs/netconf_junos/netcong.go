@@ -332,7 +332,7 @@ func (c *NETCONF) subscribeNETCONF(ctx context.Context, address string, u string
 						c.acc.AddMetric(metricToAdd)
 					}
 					delta_rpc := time.Now().UnixNano() - rpc_start
-					c.Log.Debugf("rpc handling for rpc %s and device %s toke %d ", req.rpc, address, uint64(delta_rpc))
+					c.Log.Debugf("rpc handling for rpc %s and device %s toke %s", req.rpc, address, time.Duration(uint64(delta_rpc)).String())
 				}
 			}
 		}
