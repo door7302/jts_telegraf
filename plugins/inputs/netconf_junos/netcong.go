@@ -44,7 +44,7 @@ type NETCONF struct {
 type Subscription struct {
 	Name   string   `toml:"name"`
 	Rpc    string   `toml:"junos_rpc"`
-	Fields []string `toml:"fields_type"`
+	Fields []string `toml:"fields"`
 
 	// Subscription mode and interval
 	SampleInterval config.Duration `toml:"sample_interval"`
@@ -212,6 +212,7 @@ func (c *NETCONF) subscribeNETCONF(ctx context.Context, address string, u string
 			// check if it's time to issue RPC
 			if counters[req.rpc] >= req.interval {
 				counters[req.rpc] = 0
+				c.Log.Debugf("time to to issue the rpc %s for device %s", req.rpc, address)
 
 				// Send RPC to router
 				rpc := message.NewRPC(req.rpc)
@@ -220,7 +221,7 @@ func (c *NETCONF) subscribeNETCONF(ctx context.Context, address string, u string
 					c.Log.Debugf("RPC error to Netconf device %s , rpc: %s", address, req.rpc)
 					continue
 				} else {
-
+					c.Log.Debugf("rpc-reply received for rpc %s and device %s", req.rpc, address)
 					// Made a buffer based on reply
 					buffer := bytes.NewBuffer([]byte(reply.Data))
 					decoder := xml.NewDecoder(buffer)
@@ -338,6 +339,7 @@ func (c *NETCONF) subscribeNETCONF(ctx context.Context, address string, u string
 		// update counters
 		for k, _ := range counters {
 			counters[k] += uint64(delta)
+			c.Log.Debugf("counter value for rpc %s for device %s: %d", k, address, counters[k])
 		}
 	}
 	return nil
