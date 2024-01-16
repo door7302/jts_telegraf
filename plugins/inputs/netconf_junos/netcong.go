@@ -280,6 +280,8 @@ func (c *NETCONF) subscribeNETCONF(ctx context.Context, address string, u string
 										for _, k := range data.masterKeys {
 											v, ok := metricToSend[req.rpc][k]
 											if ok {
+												c.Log.Debugf("ANALYSE Match - V= %v", v)
+
 												// Time to add the metrics to the grouper
 												if v.send == 2 {
 													// reinit the metric
@@ -305,7 +307,8 @@ func (c *NETCONF) subscribeNETCONF(ctx context.Context, address string, u string
 									for _, k := range data.masterKeys {
 										v, ok := metricToSend[req.rpc][k]
 										if ok {
-
+											c.Log.Debugf("TAG Match - V= %v", v)
+											c.Log.Debugf("TAG Match - xpath %s = %s", s, value)
 											// update TAG for each metric
 											v.keyTag = append(v.keyTag, data.shortName)
 											v.valueTag = append(v.valueTag, value)
@@ -323,7 +326,8 @@ func (c *NETCONF) subscribeNETCONF(ctx context.Context, address string, u string
 									for _, k := range data.masterKeys {
 										v, ok := metricToSend[req.rpc][k]
 										if ok {
-
+											c.Log.Debugf("Field Match - V= %v", v)
+											c.Log.Debugf("Field Match - xpath %s = %s", s, value)
 											// update TAG for each metric
 											v.keyField = data.shortName
 											switch data.metricType {
