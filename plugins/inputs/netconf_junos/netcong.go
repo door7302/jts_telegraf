@@ -234,6 +234,7 @@ func (c *NETCONF) subscribeNETCONF(ctx context.Context, address string, u string
 					// Now traverse XML tree and rebuild XPATH and fill expected metric
 					xpath := make([]string, 0)
 					value := ""
+					last_tag := ""
 					for {
 						token, err := decoder.Token()
 						if err != nil {
@@ -257,6 +258,28 @@ func (c *NETCONF) subscribeNETCONF(ctx context.Context, address string, u string
 								c.Log.Debugf("xpath match %s = %s", s, value)
 								// Update TAG of all related metrics
 								if data.metricType == "tag" {
+									if last_tag != "" && last_tag != value {
+										for _, k := range data.masterKeys {
+											v, ok := metricToSend[req.rpc][k]
+											if ok {
+												// Time to add the metrics to the grouper
+												if v.send == 2 {
+													// reinit the metric
+
+													tags := map[string]string{
+														v.keyTag: v.valueTag,
+													}
+													if err := grouper.Add(req.measurement, tags, timestamp, v.keyField, v.valueField); err != nil {
+														c.Log.Errorf("cannot add to grouper: %v", err)
+													}
+													c.Log.Debugf("  >> TAG - dump a metric: %s - %v - %d - %s - %v", req.measurement, tags, timestamp, v.keyField, v.valueField)
+												}
+												v.send = 0
+												metricToSend[req.rpc][k] = v
+											}
+										}
+									}
+									last_tag = value
 									for _, k := range data.masterKeys {
 										v, ok := metricToSend[req.rpc][k]
 										c.Log.Debugf("  >> K TAG : %s", k)
@@ -265,23 +288,11 @@ func (c *NETCONF) subscribeNETCONF(ctx context.Context, address string, u string
 											v.keyTag = data.shortName
 											v.valueTag = value
 											v.send += 1
-
-											// Time to add the metrics to the grouper
-											if v.send == 2 {
-												// reinit the metric
-												v.send = 0
-												tags := map[string]string{
-													v.keyTag: v.valueTag,
-												}
-												if err := grouper.Add(req.measurement, tags, timestamp, v.keyField, v.valueField); err != nil {
-													c.Log.Errorf("cannot add to grouper: %v", err)
-												}
-												c.Log.Debugf("  >> TAG - dump a metric: %s - %v - %d - %s - %v", req.measurement, tags, timestamp, v.keyField, v.valueField)
-											}
 											metricToSend[req.rpc][k] = v
 											c.Log.Debugf("  >> TAG - dump post : %v", metricToSend[req.rpc][k])
 										}
 									}
+
 								} else {
 									// Update field of all related metrics
 									for _, k := range data.masterKeys {
@@ -308,18 +319,6 @@ func (c *NETCONF) subscribeNETCONF(ctx context.Context, address string, u string
 												v.valueField = value
 											}
 											v.send += 1
-											// Time to add the metrics to the grouper
-											if v.send == 2 {
-												// reinit the metric
-												v.send = 0
-												tags := map[string]string{
-													v.keyTag: v.valueTag,
-												}
-												if err := grouper.Add(req.measurement, tags, timestamp, v.keyField, v.valueField); err != nil {
-													c.Log.Errorf("cannot add to grouper: %v", err)
-												}
-												c.Log.Debugf("  >> FIELD - dump a metric: %s - %v - %d - %s - %v", req.measurement, tags, timestamp, v.keyField, v.valueField)
-											}
 											metricToSend[req.rpc][k] = v
 											c.Log.Debugf("  >> FIELD - dump post : %v", metricToSend[req.rpc][k])
 										}
