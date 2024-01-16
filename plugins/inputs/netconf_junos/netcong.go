@@ -304,7 +304,9 @@ func (c *NETCONF) subscribeNETCONF(ctx context.Context, address string, u string
 									// Update field of all related metrics
 									for _, k := range data.masterKeys {
 										v, ok := metricToSend[req.rpc][k]
+
 										if ok {
+											c.Log.Debugf("RPC %s - and K %v", req.rpc, k)
 											// update TAG for each metric
 											v.keyField = data.shortName
 											switch data.metricType {
@@ -328,6 +330,7 @@ func (c *NETCONF) subscribeNETCONF(ctx context.Context, address string, u string
 
 											// Take into account metric without tag - no loop
 											if !strings.Contains(k, "[") {
+												c.Log.Debugf("XPATH %s = %s", s, value)
 												if v.send == 1 {
 													// reinit the metric
 													tags := map[string]string{
