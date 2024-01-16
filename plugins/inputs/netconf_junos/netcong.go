@@ -54,19 +54,25 @@ type req struct {
 	measurement string
 	interval    uint64
 	rpc         string
-	fieldList   []string
-	hashTable   map[string]fieldType
+	fieldList   []fieldEntry
+	hashTable   map[string]xpathEntry
 }
 
-type fieldType struct {
+type fieldEntry struct {
+	fieldName string
+	tagLength int
+}
+
+type xpathEntry struct {
 	shortName  string
 	masterKeys []string
 	metricType string
 }
 
 type netMetric struct {
-	keyTag     string
-	valueTag   string
+	tagLength  int
+	keyTag     []string
+	valueTag   []string
 	keyField   string
 	valueField interface{}
 	send       int
@@ -92,8 +98,8 @@ func (c *NETCONF) Start(acc telegraf.Accumulator) error {
 		r.measurement = s.Name
 		r.rpc = s.Rpc
 		r.interval = uint64(time.Duration(s.SampleInterval).Nanoseconds())
-		r.hashTable = make(map[string]fieldType)
-		r.fieldList = make([]string, 0)
+		r.hashTable = make(map[string]xpathEntry)
+		r.fieldList = make([]fieldEntry, 0)
 
 		// first parse paths
 		for _, p := range s.Fields {
@@ -105,9 +111,11 @@ func (c *NETCONF) Start(acc telegraf.Accumulator) error {
 			split_xpath := strings.Split(split_field[0], "/")
 			xpath := ""
 			last := ""
+			numberOfTags := 0
 			for _, e := range split_xpath {
 				// there is an attribute
 				if strings.Contains(e, "[") && strings.Contains(e, "]") {
+					numberOfTags += 1
 					// extract the key and concatenate with xpath
 					text := e[0:strings.Index(e, "[")]
 					attribut := e[strings.Index(e, "[")+1 : strings.Index(e, "]")]
@@ -115,7 +123,7 @@ func (c *NETCONF) Start(acc telegraf.Accumulator) error {
 					// create the hashtable for fast search
 					mapInstance, ok := r.hashTable[xpath+attribut]
 					if !ok {
-						r.hashTable[xpath+attribut] = fieldType{masterKeys: make([]string, 0), metricType: "tag", shortName: attribut}
+						r.hashTable[xpath+attribut] = xpathEntry{masterKeys: make([]string, 0), metricType: "tag", shortName: attribut}
 						mapInstance = r.hashTable[xpath+attribut]
 						mapInstance.masterKeys = append(mapInstance.masterKeys, p)
 						r.hashTable[xpath+attribut] = mapInstance
@@ -130,7 +138,7 @@ func (c *NETCONF) Start(acc telegraf.Accumulator) error {
 			}
 			mapInstance, ok := r.hashTable[xpath[0:len(xpath)-1]]
 			if !ok {
-				r.hashTable[xpath[0:len(xpath)-1]] = fieldType{masterKeys: make([]string, 0), metricType: split_field[1], shortName: last}
+				r.hashTable[xpath[0:len(xpath)-1]] = xpathEntry{masterKeys: make([]string, 0), metricType: split_field[1], shortName: last}
 				mapInstance = r.hashTable[xpath[0:len(xpath)-1]]
 				mapInstance.masterKeys = append(mapInstance.masterKeys, p)
 				r.hashTable[xpath[0:len(xpath)-1]] = mapInstance
@@ -138,7 +146,7 @@ func (c *NETCONF) Start(acc telegraf.Accumulator) error {
 				mapInstance.masterKeys = append(mapInstance.masterKeys, p)
 				r.hashTable[xpath[0:len(xpath)-1]] = mapInstance
 			}
-			r.fieldList = append(r.fieldList, p)
+			r.fieldList = append(r.fieldList, fieldEntry{fieldName: p, tagLength: numberOfTags})
 		}
 		requests = append(requests, r)
 	}
@@ -192,7 +200,7 @@ func (c *NETCONF) subscribeNETCONF(ctx context.Context, address string, u string
 	for _, req := range r {
 		metricToSend[req.rpc] = make(map[string]netMetric)
 		for _, k := range req.fieldList {
-			metricToSend[req.rpc][k] = netMetric{keyTag: "", valueTag: "", keyField: "", valueField: "", send: 0}
+			metricToSend[req.rpc][k.fieldName] = netMetric{tagLength: k.tagLength, keyTag: make([]string, 0), valueTag: make([]string, 0), keyField: "", valueField: "", send: 0}
 		}
 	}
 	// compute tick - add jitter to avoid thread sync
@@ -276,8 +284,11 @@ func (c *NETCONF) subscribeNETCONF(ctx context.Context, address string, u string
 													// reinit the metric
 													tags := map[string]string{
 														"device": address,
-														v.keyTag: v.valueTag,
 													}
+													for ind := 0; ind < v.tagLength; ind++ {
+														tags[v.keyTag[ind]] = v.valueTag[ind]
+													}
+
 													if err := grouper.Add(req.measurement, tags, timestamp, v.keyField, v.valueField); err != nil {
 														c.Log.Errorf("cannot add to grouper: %v", err)
 													}
@@ -292,9 +303,12 @@ func (c *NETCONF) subscribeNETCONF(ctx context.Context, address string, u string
 										v, ok := metricToSend[req.rpc][k]
 										if ok {
 											// update TAG for each metric
-											v.keyTag = data.shortName
-											v.valueTag = value
-											v.send += 1
+											v.keyTag = append(v.keyTag, data.shortName)
+											v.valueTag = append(v.valueTag, value)
+											// only add token to send variable only if we reach the number of expected tag
+											if len(v.valueTag) == v.tagLength {
+												v.send += 1
+											}
 											metricToSend[req.rpc][k] = v
 										}
 									}
@@ -379,7 +393,38 @@ func (c *NETCONF) Stop() {
 }
 
 const sampleConfig = `
- TO DO
+[[inputs.netconf_junos]]
+  ## Address of the Juniper NETCONF server
+  addresses = ["10.49.234.114"]
+
+  ## define credentials
+  username = "lab"
+  password = "lab123"
+
+  ## redial in case of failures after
+  redial = "10s"
+
+  [[inputs.netconf_junos.subscription]]
+    ## Name of the measurement that will be emitted
+    name = "ifcounters"
+
+    ## the JUNOS RPC to collect 
+    junos_rpc = "<get-interface-information><statistics/></get-interface-information>"
+  
+    ## A list of xpath lite + type to collect / encode 
+    ## Each entry in the list is made of:
+    ## - xpath lite 
+    ## - a type of encoding (supported types : int, float, string)
+    ## 
+    ## The xpath lite should follow the rpc reply XML document. Optional: you can include btw [] the KEY's name that must use to detect the loop 
+    ## Only one loop field must be used and should be the same for all fields part of the same RPC 
+    fields = ["/interface-information/physical-interface[ifname]/speed:string", 
+            "/interface-information/physical-interface[ifname]/traffic-statistics/input-packets:int",
+            "/interface-information/physical-interface[ifname]/traffic-statistics/output-packets:int",
+            ]
+
+    ## Interval to request the RPC
+    sample_interval = "10s"
 `
 
 // SampleConfig of plugin
