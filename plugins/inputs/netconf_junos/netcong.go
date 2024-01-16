@@ -322,7 +322,7 @@ func (c *NETCONF) subscribeNETCONF(ctx context.Context, address string, u string
 							// now check metrics to send (with send variable = 2)
 
 						case xml.CharData:
-							value = string(element)
+							value = strings.ReplaceAll(string(element), "\n", "")
 						}
 
 					}
@@ -341,7 +341,6 @@ func (c *NETCONF) subscribeNETCONF(ctx context.Context, address string, u string
 		// update counters
 		for k, _ := range counters {
 			counters[k] += uint64(delta)
-			c.Log.Debugf("counter value for rpc %s for device %s: %d", k, address, counters[k])
 		}
 	}
 	return nil
