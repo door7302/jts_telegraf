@@ -209,7 +209,6 @@ func (c *NETCONF) subscribeNETCONF(ctx context.Context, address string, u string
 	for ctx.Err() == nil {
 		start := time.Now().UnixNano()
 		for _, req := range r {
-			c.Log.Debugf("debug %s %d", req.rpc, req.interval)
 			// check if it's time to issue RPC
 			if counters[req.rpc] >= req.interval {
 				counters[req.rpc] = 0
@@ -254,6 +253,7 @@ func (c *NETCONF) subscribeNETCONF(ctx context.Context, address string, u string
 							}
 							data, ok := req.hashTable[s]
 							if ok {
+								c.Log.Debugf("match xpath %s = %s", s, value)
 								// Update TAG of all related metrics
 								if data.metricType == "tag" {
 									for _, k := range data.masterKeys {
