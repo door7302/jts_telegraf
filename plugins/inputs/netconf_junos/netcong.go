@@ -304,9 +304,9 @@ func (c *NETCONF) subscribeNETCONF(ctx context.Context, address string, u string
 									// Update field of all related metrics
 									for _, k := range data.masterKeys {
 										v, ok := metricToSend[req.rpc][k]
-
+										c.Log.Debugf("RPC %s - and K %v", req.rpc, k)
 										if ok {
-											c.Log.Debugf("RPC %s - and K %v", req.rpc, k)
+
 											// update TAG for each metric
 											v.keyField = data.shortName
 											switch data.metricType {
