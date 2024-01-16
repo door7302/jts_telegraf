@@ -211,6 +211,7 @@ func (c *NETCONF) subscribeNETCONF(ctx context.Context, address string, u string
 		for _, req := range r {
 			// check if it's time to issue RPC
 			if counters[req.rpc] >= req.interval {
+				rpc_start := time.Now().UnixNano()
 				counters[req.rpc] = 0
 				c.Log.Debugf("time to to issue the rpc %s for device %s", req.rpc, address)
 
@@ -253,7 +254,7 @@ func (c *NETCONF) subscribeNETCONF(ctx context.Context, address string, u string
 							}
 							data, ok := req.hashTable[s]
 							if ok {
-								c.Log.Debugf("match xpath %s = %s", s, value)
+
 								// Update TAG of all related metrics
 								if data.metricType == "tag" {
 									for _, k := range data.masterKeys {
@@ -330,6 +331,8 @@ func (c *NETCONF) subscribeNETCONF(ctx context.Context, address string, u string
 					for _, metricToAdd := range grouper.Metrics() {
 						c.acc.AddMetric(metricToAdd)
 					}
+					delta_rpc := time.Now().UnixNano() - rpc_start
+					c.Log.Debugf("rpc handling for rpc %s and device %s toke %d ", req.rpc, address, uint64(delta_rpc))
 				}
 			}
 		}
