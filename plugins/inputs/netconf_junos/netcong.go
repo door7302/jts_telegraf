@@ -279,6 +279,8 @@ func (c *NETCONF) subscribeNETCONF(ctx context.Context, address string, u string
 											}
 											metricToSend[req.rpc][k] = v
 											c.Log.Debugf("  >> TAG - dump post : %v", metricToSend[req.rpc][k])
+										} else {
+											c.Log.Debugf("  >> ERROR TAG")
 										}
 									}
 								} else {
@@ -320,6 +322,8 @@ func (c *NETCONF) subscribeNETCONF(ctx context.Context, address string, u string
 											}
 											metricToSend[req.rpc][k] = v
 											c.Log.Debugf("  >> FIELD - dump post : %v", metricToSend[req.rpc][k])
+										} else {
+											c.Log.Debugf("  >> ERROR FIELD")
 										}
 									}
 								}
