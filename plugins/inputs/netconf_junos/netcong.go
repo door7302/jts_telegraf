@@ -278,6 +278,7 @@ func (c *NETCONF) subscribeNETCONF(ctx context.Context, address string, u string
 												c.Log.Debugf("  >> TAG - dump a metric: %s - %v - %d - %s - %v", req.measurement, tags, timestamp, v.keyField, v.valueField)
 											}
 											metricToSend[req.rpc][k] = v
+											c.Log.Debugf("  >> TAG - dump post : %v", metricToSend[req.rpc][k])
 										}
 									}
 								} else {
@@ -318,6 +319,7 @@ func (c *NETCONF) subscribeNETCONF(ctx context.Context, address string, u string
 												c.Log.Debugf("  >> FIELD - dump a metric: %s - %v - %d - %s - %v", req.measurement, tags, timestamp, v.keyField, v.valueField)
 											}
 											metricToSend[req.rpc][k] = v
+											c.Log.Debugf("  >> FIELD - dump post : %v", metricToSend[req.rpc][k])
 										}
 									}
 								}
