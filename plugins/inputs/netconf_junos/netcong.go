@@ -259,6 +259,7 @@ func (c *NETCONF) subscribeNETCONF(ctx context.Context, address string, u string
 								if data.metricType == "tag" {
 									for _, k := range data.masterKeys {
 										v, ok := metricToSend[req.rpc][k]
+										c.Log.Debugf("  >> K TAG : %s", k)
 										if ok {
 											// update TAG for each metric
 											v.keyTag = data.shortName
@@ -279,14 +280,13 @@ func (c *NETCONF) subscribeNETCONF(ctx context.Context, address string, u string
 											}
 											metricToSend[req.rpc][k] = v
 											c.Log.Debugf("  >> TAG - dump post : %v", metricToSend[req.rpc][k])
-										} else {
-											c.Log.Debugf("  >> ERROR TAG")
 										}
 									}
 								} else {
 									// Update field of all related metrics
 									for _, k := range data.masterKeys {
 										v, ok := metricToSend[req.rpc][k]
+										c.Log.Debugf("  >> K FIELD : %s", k)
 										if ok {
 											// update TAG for each metric
 											v.keyField = data.shortName
@@ -322,8 +322,6 @@ func (c *NETCONF) subscribeNETCONF(ctx context.Context, address string, u string
 											}
 											metricToSend[req.rpc][k] = v
 											c.Log.Debugf("  >> FIELD - dump post : %v", metricToSend[req.rpc][k])
-										} else {
-											c.Log.Debugf("  >> ERROR FIELD")
 										}
 									}
 								}
