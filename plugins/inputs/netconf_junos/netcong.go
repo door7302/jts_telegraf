@@ -26,11 +26,11 @@ type NETCONF struct {
 	Subscriptions []Subscription `toml:"subscription"`
 
 	// Netconf target credentials
-	Username string
-	Password string
+	Username string `toml:"username"`
+	Password string `toml:"password"`
 
 	// Redial
-	Redial config.Duration
+	Redial config.Duration `toml:"redial"`
 
 	// Internal state
 	acc    telegraf.Accumulator
@@ -43,8 +43,8 @@ type NETCONF struct {
 // Subscription for a Netconf client
 type Subscription struct {
 	Name   string   `toml:"name"`
-	Rpc    string   `toml:"junos-rpc"`
-	Fields []string `toml:"hashTable"`
+	Rpc    string   `toml:"junos_rpc"`
+	Fields []string `toml:"fields_type"`
 
 	// Subscription mode and interval
 	SampleInterval config.Duration `toml:"sample_interval"`
@@ -373,5 +373,5 @@ func New() telegraf.Input {
 	}
 }
 func init() {
-	inputs.Add("netconf", New)
+	inputs.Add("netconf_junos", New)
 }
