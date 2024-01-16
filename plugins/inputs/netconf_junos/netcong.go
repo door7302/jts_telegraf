@@ -203,6 +203,7 @@ func (c *NETCONF) subscribeNETCONF(ctx context.Context, address string, u string
 			metricToSend[req.rpc][k.fieldName] = netMetric{tagLength: k.tagLength, keyTag: make([]string, 0), valueTag: make([]string, 0), keyField: "", valueField: "", send: 0}
 		}
 	}
+	c.Log.Debugf("DECODE %v", metricToSend)
 	// compute tick - add jitter to avoid thread sync
 	jitter := time.Duration(1000 + rand.Intn(10))
 	tick := jitter * time.Millisecond
