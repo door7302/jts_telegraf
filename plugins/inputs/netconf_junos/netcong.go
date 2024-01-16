@@ -209,6 +209,7 @@ func (c *NETCONF) subscribeNETCONF(ctx context.Context, address string, u string
 	for ctx.Err() == nil {
 		start := time.Now().UnixNano()
 		for _, req := range r {
+			c.Log.Debugf("debug %s %d", req.rpc, req.interval)
 			// check if it's time to issue RPC
 			if counters[req.rpc] >= req.interval {
 				counters[req.rpc] = 0
@@ -336,6 +337,7 @@ func (c *NETCONF) subscribeNETCONF(ctx context.Context, address string, u string
 		if uint64(delta) < uint64(tick) {
 			time.Sleep(tick)
 		}
+		delta = time.Now().UnixNano() - start
 		// update counters
 		for k, _ := range counters {
 			counters[k] += uint64(delta)
