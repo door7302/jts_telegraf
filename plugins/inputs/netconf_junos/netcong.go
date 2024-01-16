@@ -261,7 +261,7 @@ func (c *NETCONF) subscribeNETCONF(ctx context.Context, address string, u string
 							if len(xpath) > 0 {
 								xpath = xpath[:len(xpath)-1]
 							}
-
+							c.Log.Debugf("XPATH %s = %s", s, value)
 							// check if xpath matches one field's xpath
 							data, ok := req.hashTable[s]
 							if ok {
@@ -330,7 +330,7 @@ func (c *NETCONF) subscribeNETCONF(ctx context.Context, address string, u string
 
 											// Take into account metric without tag - no loop
 											if !strings.Contains(k, "[") {
-												c.Log.Debugf("XPATH %s = %s", s, value)
+
 												if v.send == 1 {
 													// reinit the metric
 													tags := map[string]string{
