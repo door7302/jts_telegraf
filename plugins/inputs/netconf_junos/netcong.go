@@ -274,7 +274,7 @@ func (c *NETCONF) subscribeNETCONF(ctx context.Context, address string, u string
 												if err := grouper.Add(req.measurement, tags, timestamp, v.keyField, v.valueField); err != nil {
 													c.Log.Errorf("cannot add to grouper: %v", err)
 												}
-												c.Log.Debugf("dump a metric: %v", v)
+												c.Log.Debugf("TAG - dump a metric: %v", v)
 											}
 											metricToSend[req.rpc][k] = v
 										}
@@ -314,6 +314,7 @@ func (c *NETCONF) subscribeNETCONF(ctx context.Context, address string, u string
 												if err := grouper.Add(req.measurement, tags, timestamp, v.keyField, v.valueField); err != nil {
 													c.Log.Errorf("cannot add to grouper: %v", err)
 												}
+												c.Log.Debugf("FIELD - dump a metric: %v", v)
 											}
 											metricToSend[req.rpc][k] = v
 										}
