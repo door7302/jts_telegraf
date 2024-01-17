@@ -215,10 +215,16 @@ func (c *NETCONF) subscribeNETCONF(ctx context.Context, address string, u string
 	jitter := time.Duration(1000 + rand.Intn(10))
 	tick := jitter * time.Millisecond
 
-	// Init counter per RPC
-	counters := make(map[string]uint64)
+	// First find out the min interval btw all RPC
+	min := uint64(100000)
 	for _, v := range r {
-		counters[v.rpc] = 0
+		min = minUint64(min, v.interval)
+	}
+	// Init counter per RPC - distribute evently the RPC over the min time frame
+	taskInterval := uint64(time.Duration((float64(min) / float64(len(r))) * float64(time.Second)))
+	counters := make(map[string]uint64)
+	for i, v := range r {
+		counters[v.rpc] = uint64(i) * taskInterval
 	}
 
 	// Loop until end
@@ -414,6 +420,14 @@ const sampleConfig = `
     fields = ["/interface-information/physical-interface[name]/queue-counters/queue[queue-number]/queue-counters-queued-packets:int",]
 	sample_interval = "60s"
 `
+
+// simple unint64 min func
+func minUint64(a, b uint64) uint64 {
+	if a < b {
+		return a
+	}
+	return b
+}
 
 // SampleConfig of plugin
 func (c *NETCONF) SampleConfig() string {
