@@ -395,7 +395,7 @@ const sampleConfig = `
     junos_rpc = "<get-interface-information><statistics/></get-interface-information>"
   
     ## A list of xpath lite + type to collect / encode 
-    ## Each entry in the list is made of:
+    ## Each entry in the list is made of: <xpath>:<type>
     ## - xpath lite 
     ## - a type of encoding (supported types : int, float, string)
     ## 
