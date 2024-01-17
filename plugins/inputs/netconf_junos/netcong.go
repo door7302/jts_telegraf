@@ -73,12 +73,12 @@ type xpathEntry struct {
 }
 
 type netconfMetric struct {
-	tagLength  int
-	keyTag     []string
-	valueTag   []string
-	keyField   string
-	valueField interface{}
-	send       int
+	tagLength   int
+	keyTag      []string
+	valueTag    []string
+	keyField    string
+	valueField  interface{}
+	valueFilled int
 }
 
 // Start the ssh listener service
@@ -207,7 +207,7 @@ func (c *NETCONF) subscribeNETCONF(ctx context.Context, address string, u string
 	for _, req := range r {
 		metricToSend[req.rpc] = make(map[string]netconfMetric)
 		for _, k := range req.fieldList {
-			metricToSend[req.rpc][k.fieldName] = netconfMetric{tagLength: k.tagLength, keyTag: make([]string, maxTagStackDepth), valueTag: make([]string, maxTagStackDepth), keyField: "", valueField: "", send: 0}
+			metricToSend[req.rpc][k.fieldName] = netconfMetric{tagLength: k.tagLength, keyTag: make([]string, maxTagStackDepth), valueTag: make([]string, maxTagStackDepth), keyField: "", valueField: "", valueFilled: 0}
 		}
 	}
 
@@ -291,7 +291,7 @@ func (c *NETCONF) subscribeNETCONF(ctx context.Context, address string, u string
 											// update TAG for each metric
 											v.keyTag[tagIdx] = data.shortName
 											v.valueTag[tagIdx] = value
-											v.send = tagIdx + 1
+											v.valueFilled = tagIdx + 1
 											metricToSend[req.rpc][k] = v
 										}
 									}
@@ -320,10 +320,10 @@ func (c *NETCONF) subscribeNETCONF(ctx context.Context, address string, u string
 												// Keep value as string for all other types
 												v.valueField = value
 											}
-											v.send += 1
+											v.valueFilled += 1
 
 											// check if Metric should be sent
-											if v.send > v.tagLength {
+											if v.valueFilled > v.tagLength {
 												tags := map[string]string{
 													"device": address,
 												}
@@ -334,7 +334,7 @@ func (c *NETCONF) subscribeNETCONF(ctx context.Context, address string, u string
 													c.Log.Errorf("cannot add to grouper: %v", err)
 												}
 												// reduce of one tag - once metric sent
-												v.send = v.tagLength - 1
+												v.valueFilled = v.tagLength - 1
 											}
 											metricToSend[req.rpc][k] = v
 										}
