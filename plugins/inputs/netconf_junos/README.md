@@ -29,12 +29,17 @@ This plugin consumes Netconf data coming from Juniper (Junos/EVO) devices
     ## - a type of encoding (supported types : int, float, string)
     ## 
     ## The xpath lite should follow the rpc reply XML document. Optional: you can include btw [] the KEY's name that must use to detect the loop 
-    ## Only one loop field must be used and should be the same for all fields part of the same RPC 
     fields = ["/interface-information/physical-interface[ifname]/speed:string", 
-            "/interface-information/physical-interface[ifname]/traffic-statistics/input-packets:int",
-            "/interface-information/physical-interface[ifname]/traffic-statistics/output-packets:int",
-            ]
-
+              "/interface-information/physical-interface[ifname]/traffic-statistics/input-packets:int",
+              "/interface-information/physical-interface[ifname]/traffic-statistics/output-packets:int",
+             ]
     ## Interval to request the RPC
-    sample_interval = "10s"
+    sample_interval = "30s"
+
+  ## Another example with 2 levels of key
+  [[inputs.netconf_junos.subscription]]
+	  name = "COS"
+    junos_rpc = "<get-interface-queue-information></get-interface-queue-information>"
+    fields = ["/interface-information/physical-interface[name]/queue-counters/queue[queue-number]/queue-counters-queued-packets:int",]
+	  sample_interval = "60s"
 ```

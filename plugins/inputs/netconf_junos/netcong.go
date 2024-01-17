@@ -72,7 +72,7 @@ type xpathEntry struct {
 	tagIdx     int
 }
 
-type netMetric struct {
+type netconfMetric struct {
 	tagLength  int
 	keyTag     []string
 	valueTag   []string
@@ -202,12 +202,12 @@ func (c *NETCONF) subscribeNETCONF(ctx context.Context, address string, u string
 	defer c.Log.Debugf("Connection to Netconf device %s closed", address)
 
 	// prepare the map for searching metrics - unique per router - derived from initial request
-	var metricToSend map[string]map[string]netMetric
-	metricToSend = make(map[string]map[string]netMetric)
+	var metricToSend map[string]map[string]netconfMetric
+	metricToSend = make(map[string]map[string]netconfMetric)
 	for _, req := range r {
-		metricToSend[req.rpc] = make(map[string]netMetric)
+		metricToSend[req.rpc] = make(map[string]netconfMetric)
 		for _, k := range req.fieldList {
-			metricToSend[req.rpc][k.fieldName] = netMetric{tagLength: k.tagLength, keyTag: make([]string, maxTagStackDepth), valueTag: make([]string, maxTagStackDepth), keyField: "", valueField: "", send: 0}
+			metricToSend[req.rpc][k.fieldName] = netconfMetric{tagLength: k.tagLength, keyTag: make([]string, maxTagStackDepth), valueTag: make([]string, maxTagStackDepth), keyField: "", valueField: "", send: 0}
 		}
 	}
 
@@ -288,12 +288,9 @@ func (c *NETCONF) subscribeNETCONF(ctx context.Context, address string, u string
 									for _, k := range data.masterKeys {
 										v, ok := metricToSend[req.rpc][k]
 										if ok {
-											c.Log.Debugf("TAG Match - V= %v", v)
-											c.Log.Debugf("TAG Match - xpath %s = %s", s, value)
 											// update TAG for each metric
 											v.keyTag[tagIdx] = data.shortName
 											v.valueTag[tagIdx] = value
-
 											v.send = tagIdx + 1
 											metricToSend[req.rpc][k] = v
 										}
@@ -304,8 +301,6 @@ func (c *NETCONF) subscribeNETCONF(ctx context.Context, address string, u string
 									for _, k := range data.masterKeys {
 										v, ok := metricToSend[req.rpc][k]
 										if ok {
-											c.Log.Debugf("Field Match - V= %v", v)
-											c.Log.Debugf("Field Match - xpath %s = %s", s, value)
 											// update TAG for each metric
 											v.keyField = data.shortName
 											switch data.metricType {
@@ -338,6 +333,7 @@ func (c *NETCONF) subscribeNETCONF(ctx context.Context, address string, u string
 												if err := grouper.Add(req.measurement, tags, timestamp, v.keyField, v.valueField); err != nil {
 													c.Log.Errorf("cannot add to grouper: %v", err)
 												}
+												// reduce of one tag - once metric sent
 												v.send = v.tagLength - 1
 											}
 											metricToSend[req.rpc][k] = v
@@ -382,7 +378,7 @@ func (c *NETCONF) Stop() {
 const sampleConfig = `
 [[inputs.netconf_junos]]
   ## Address of the Juniper NETCONF server
-  addresses = ["10.49.234.114"]
+  addresses = ["10.49.234.1"]
 
   ## define credentials
   username = "lab"
@@ -404,14 +400,19 @@ const sampleConfig = `
     ## - a type of encoding (supported types : int, float, string)
     ## 
     ## The xpath lite should follow the rpc reply XML document. Optional: you can include btw [] the KEY's name that must use to detect the loop 
-    ## Only one loop field must be used and should be the same for all fields part of the same RPC 
     fields = ["/interface-information/physical-interface[ifname]/speed:string", 
             "/interface-information/physical-interface[ifname]/traffic-statistics/input-packets:int",
             "/interface-information/physical-interface[ifname]/traffic-statistics/output-packets:int",
             ]
-
     ## Interval to request the RPC
-    sample_interval = "10s"
+    sample_interval = "30s"
+
+  ## Another example with 2 levels of key
+  [[inputs.netconf_junos.subscription]]
+    name = "COS"
+    junos_rpc = "<get-interface-queue-information></get-interface-queue-information>"
+    fields = ["/interface-information/physical-interface[name]/queue-counters/queue[queue-number]/queue-counters-queued-packets:int",]
+	sample_interval = "60s"
 `
 
 // SampleConfig of plugin
