@@ -1,0 +1,75 @@
+[[netconf.subscription]]
+  name = "INTERFACE"
+  rpc = "<get-interface-information><statistics/></get-interface-information>"
+  fields = ["/interface-information/physical-interface[name]/speed:string", 
+            "/interface-information/physical-interface[name]/traffic-statistics/input-bps:int",
+            "/interface-information/physical-interface[name]/traffic-statistics/output-bps:int"
+            ]
+{
+  "measurement": "TEST",
+  "interval": 30,
+  "counter": 0,
+  "rpc": "MYRPC",
+  "fields": [
+    "/interface-information/physical-interface[name]/speed:string",
+    "/interface-information/physical-interface[name]/traffic-statistics/input-bps:int",
+    "/interface-information/physical-interface[name]/traffic-statistics/output-bps:int"
+  ],
+  "hash": {
+    "/interface-information/physical-interface/name": {
+      "shortname": "name",
+      "masterkeys": [
+        "/interface-information/physical-interface[name]/speed:string",
+        "/interface-information/physical-interface[name]/traffic-statistics/input-bps:int",
+        "/interface-information/physical-interface[name]/traffic-statistics/output-bps:int"
+      ],
+      "type": "tag"
+    },
+    "/interface-information/physical-interface/speed": {
+      "shortname": "speed",
+      "masterkeys": [
+        "/interface-information/physical-interface[name]/speed:string"
+      ],
+      "type": "string"
+    },
+    "/interface-information/physical-interface/traffic-statistics/input-bps": {
+      "shortname": "input-bps",
+      "masterkeys": [
+        "/interface-information/physical-interface[name]/traffic-statistics/input-bps:int"
+      ],
+      "type": "int"
+    },
+    "/interface-information/physical-interface/traffic-statistics/output-bps": {
+      "shortname": "output-bps",
+      "masterkeys": [
+        "/interface-information/physical-interface[name]/traffic-statistics/output-bps:int"
+      ],
+      "type": "int"
+    }
+  }
+}
+{
+  "MYRPC": {
+    "/interface-information/physical-interface[name]/speed:string": {
+      "keytag": "",
+      "valuetag": "",
+      "keyfield": "",
+      "valuefield": "",
+      "send": 0
+    },
+    "/interface-information/physical-interface[name]/traffic-statistics/input-bps:int": {
+      "keytag": "",
+      "valuetag": "",
+      "keyfield": "",
+      "valuefield": "",
+      "send": 0
+    },
+    "/interface-information/physical-interface[name]/traffic-statistics/output-bps:int": {
+      "keytag": "",
+      "valuetag": "",
+      "keyfield": "",
+      "valuefield": "",
+      "send": 0
+    }
+  }
+}
