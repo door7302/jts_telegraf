@@ -20,6 +20,8 @@ import (
 	"golang.org/x/crypto/ssh"
 )
 
+const maxTagStackDepth = 5
+
 // Netconf plugin instance
 type NETCONF struct {
 	Addresses     []string       `toml:"addresses"`
@@ -67,6 +69,7 @@ type xpathEntry struct {
 	shortName  string
 	masterKeys []string
 	metricType string
+	tagIdx     int
 }
 
 type netMetric struct {
@@ -112,6 +115,7 @@ func (c *NETCONF) Start(acc telegraf.Accumulator) error {
 			xpath := ""
 			last := ""
 			numberOfTags := 0
+			tag_idx := 0
 			for _, e := range split_xpath {
 				// there is an attribute
 				if strings.Contains(e, "[") && strings.Contains(e, "]") {
@@ -123,12 +127,15 @@ func (c *NETCONF) Start(acc telegraf.Accumulator) error {
 					// create the hashtable for fast search
 					mapInstance, ok := r.hashTable[xpath+attribut]
 					if !ok {
-						r.hashTable[xpath+attribut] = xpathEntry{masterKeys: make([]string, 0), metricType: "tag", shortName: attribut}
+						r.hashTable[xpath+attribut] = xpathEntry{masterKeys: make([]string, 0), metricType: "tag", shortName: attribut, tagIdx: tag_idx}
+						tag_idx += 1
 						mapInstance = r.hashTable[xpath+attribut]
 						mapInstance.masterKeys = append(mapInstance.masterKeys, p)
 						r.hashTable[xpath+attribut] = mapInstance
 					} else {
 						mapInstance.masterKeys = append(mapInstance.masterKeys, p)
+						// to manage tag hierarchy
+						tag_idx += 1
 						r.hashTable[xpath+attribut] = mapInstance
 					}
 				} else {
@@ -200,7 +207,7 @@ func (c *NETCONF) subscribeNETCONF(ctx context.Context, address string, u string
 	for _, req := range r {
 		metricToSend[req.rpc] = make(map[string]netMetric)
 		for _, k := range req.fieldList {
-			metricToSend[req.rpc][k.fieldName] = netMetric{tagLength: k.tagLength, keyTag: make([]string, 0), valueTag: make([]string, 0), keyField: "", valueField: "", send: 0}
+			metricToSend[req.rpc][k.fieldName] = netMetric{tagLength: k.tagLength, keyTag: make([]string, maxTagStackDepth), valueTag: make([]string, maxTagStackDepth), keyField: "", valueField: "", send: 0}
 		}
 	}
 
@@ -245,7 +252,7 @@ func (c *NETCONF) subscribeNETCONF(ctx context.Context, address string, u string
 					// Now traverse XML tree and rebuild XPATH and fill expected metric
 					xpath := make([]string, 0)
 					value := ""
-					last_tag := ""
+
 					for {
 						token, err := decoder.Token()
 						if err != nil {
@@ -270,53 +277,24 @@ func (c *NETCONF) subscribeNETCONF(ctx context.Context, address string, u string
 							if len(xpath) > 0 {
 								xpath = xpath[:len(xpath)-1]
 							}
+
 							// check if xpath matches one field's xpath
 							data, ok := req.hashTable[s]
 							if ok {
 								// Update TAG of all related metrics
 								if data.metricType == "tag" {
-									// if tag changes - it means its time to flush metric - we have looped to a new entry
-									if last_tag != "" && last_tag != value {
-										for _, k := range data.masterKeys {
-											v, ok := metricToSend[req.rpc][k]
-											if ok {
-												c.Log.Debugf("ANALYSE Match - V= %v", v)
+									tagIdx := data.tagIdx
 
-												// Time to add the metrics to the grouper
-												if v.send == 2 {
-													// reinit the metric
-													tags := map[string]string{
-														"device": address,
-													}
-													for ind := 0; ind < v.tagLength; ind++ {
-														tags[v.keyTag[ind]] = v.valueTag[ind]
-													}
-
-													if err := grouper.Add(req.measurement, tags, timestamp, v.keyField, v.valueField); err != nil {
-														c.Log.Errorf("cannot add to grouper: %v", err)
-													}
-												}
-												v.send = 0
-												v.keyTag = make([]string, 0)
-												v.valueTag = make([]string, 0)
-												metricToSend[req.rpc][k] = v
-											}
-										}
-									}
-									last_tag = value
 									for _, k := range data.masterKeys {
 										v, ok := metricToSend[req.rpc][k]
 										if ok {
 											c.Log.Debugf("TAG Match - V= %v", v)
 											c.Log.Debugf("TAG Match - xpath %s = %s", s, value)
 											// update TAG for each metric
-											v.keyTag = append(v.keyTag, data.shortName)
-											v.valueTag = append(v.valueTag, value)
-											// only add token to send variable only if we reach the number of expected tag
+											v.keyTag[tagIdx] = data.shortName
+											v.valueTag[tagIdx] = value
 
-											if len(v.valueTag) == v.tagLength {
-												v.send += 1
-											}
+											v.send = tagIdx + 1
 											metricToSend[req.rpc][k] = v
 										}
 									}
@@ -349,18 +327,18 @@ func (c *NETCONF) subscribeNETCONF(ctx context.Context, address string, u string
 											}
 											v.send += 1
 
-											// Take into account metric without tag - no loop
-											if !strings.Contains(k, "[") {
-												if v.send == 1 {
-													// reinit the metric
-													tags := map[string]string{
-														"device": address,
-													}
-													if err := grouper.Add(req.measurement, tags, timestamp, v.keyField, v.valueField); err != nil {
-														c.Log.Errorf("cannot add to grouper: %v", err)
-													}
-													v.send = 0
+											// check if Metric should be sent
+											if v.send > v.tagLength {
+												tags := map[string]string{
+													"device": address,
 												}
+												for ind := 0; ind < v.tagLength; ind++ {
+													tags[v.keyTag[ind]] = v.valueTag[ind]
+												}
+												if err := grouper.Add(req.measurement, tags, timestamp, v.keyField, v.valueField); err != nil {
+													c.Log.Errorf("cannot add to grouper: %v", err)
+												}
+												v.send = v.tagLength - 1
 											}
 											metricToSend[req.rpc][k] = v
 										}
