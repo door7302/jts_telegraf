@@ -15,11 +15,6 @@ RUN apk update --no-cache && \
 USER 0
 RUN mkdir -p /etc/telegraf
 RUN mkdir -p /var/metadata
-
-RUN echo "echo '1.0.1' > /var/metadata/telegraf.version" > script.sh
-CMD chmod +x script.sh
-CMD ./script.sh
-
 RUN mkdir -p /var/cert
 RUN mkdir -p /etc/telegraf/telegraf.d 
 USER telegraf
