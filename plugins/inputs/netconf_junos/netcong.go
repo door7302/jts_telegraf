@@ -21,6 +21,7 @@ import (
 )
 
 const maxTagStackDepth = 5
+const layout = "2006-01-02 15:04:05 MST"
 
 // Netconf plugin instance
 type NETCONF struct {
@@ -322,6 +323,15 @@ func (c *NETCONF) subscribeNETCONF(ctx context.Context, address string, u string
 													// keep string as type in case of error
 													v.valueField = value
 												}
+											case "epoch":
+												t, err := time.Parse(layout, value)
+												if err != nil {
+													// keep string as type in case of error
+													v.valueField = value
+												} else {
+													v.valueField = t.UnixNano()
+												}
+
 											default:
 												// Keep value as string for all other types
 												v.valueField = value
@@ -349,7 +359,7 @@ func (c *NETCONF) subscribeNETCONF(ctx context.Context, address string, u string
 							}
 						case xml.CharData:
 							// extract value
-							value = strings.ReplaceAll(string(element), "\n", "")
+							value = strings.TrimSpace(strings.ReplaceAll(string(element), "\n", ""))
 						}
 
 					}
@@ -403,7 +413,7 @@ const sampleConfig = `
     ## A list of xpath lite + type to collect / encode 
     ## Each entry in the list is made of: <xpath>:<type>
     ## - xpath lite 
-    ## - a type of encoding (supported types : int, float, string)
+    ## - a type of encoding (supported types : int, float, string, epoch)
     ## 
     ## The xpath lite should follow the rpc reply XML document. Optional: you can include btw [] the KEY's name that must use to detect the loop 
     fields = ["/interface-information/physical-interface[ifname]/speed:string", 
