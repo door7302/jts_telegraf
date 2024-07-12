@@ -418,9 +418,9 @@ func (c *NETCONF) subscribeNETCONF(ctx context.Context, address string, u string
 											fval.currentValue = value
 											fval.visited = true
 										}
+										metricToSend[req.rpc][s] = fval
+										fmt.Printf("Update Field value: %s - %v\n", metricToSend[req.rpc][s].shortName, metricToSend[req.rpc][s].currentValue) // debug
 									}
-									metricToSend[req.rpc][s] = fval
-									fmt.Printf("Update Field value: %s - %v\n", metricToSend[req.rpc][s].shortName, metricToSend[req.rpc][s].currentValue) // debug
 								}
 							}
 
