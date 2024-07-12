@@ -321,15 +321,17 @@ func (c *NETCONF) subscribeNETCONF(ctx context.Context, address string, u string
 							}
 							// Remove trailing /
 							s = s[:len(s)-1]
-
+							fmt.Printf("Found XPATH: %s\n", s) // debug
 							// First check if xpath is a parent - if parent you need to prepare metric to send
 							pval, ok := allParents[req.rpc][s]
 							if ok {
+								fmt.Printf("XPATH is a parent: %s\n", s) // debug
 								// time to check all fields attached to the parent
 								for _, f := range pval {
 									// first check field has been visited or not
 									med, ok := metricToSend[req.rpc][f]
 									if ok && med.visited {
+										fmt.Printf("Field is visited: %s - %v\n", med.shortName, med.currentValue) // debug
 										// create the metric
 										medTags := map[string]string{
 											"device": address,
@@ -339,6 +341,7 @@ func (c *NETCONF) subscribeNETCONF(ctx context.Context, address string, u string
 											tVal, ok := tagTable[req.rpc][z]
 											if ok {
 												if tVal.visited {
+													fmt.Printf("Add visited tag: %s - %v\n", tVal.shortName, tVal.currentValue) // debug
 													medTags[tVal.shortName] = tVal.currentValue
 												}
 											}
@@ -351,6 +354,7 @@ func (c *NETCONF) subscribeNETCONF(ctx context.Context, address string, u string
 								}
 								// now reset all fields and tags associated to parent
 								for _, f := range pval {
+									fmt.Printf("Reset parent children: %s\n", s) // debug
 									med, ok := metricToSend[req.rpc][f]
 									// this is a field
 									if ok {
@@ -368,13 +372,17 @@ func (c *NETCONF) subscribeNETCONF(ctx context.Context, address string, u string
 									}
 								}
 							} else {
+								fmt.Printf("XPATH is a tag: %s\n", s) // debug
 								// if not parent check if it's a tag
 								tval, ok := tagTable[req.rpc][s]
 								if ok {
 									tval.currentValue = value
 									tval.visited = true
 									tagTable[req.rpc][s] = tval
+									fmt.Printf("Update TAG value: %s - %v\n", tagTable[req.rpc][s].shortName, tagTable[req.rpc][s].currentValue) // debug
+
 								} else {
+									fmt.Printf("XPATH is a field: %s\n", s) // debug
 									// otherwise check if it's a field to track
 									fval, ok := metricToSend[req.rpc][s]
 									if ok {
@@ -409,6 +417,7 @@ func (c *NETCONF) subscribeNETCONF(ctx context.Context, address string, u string
 										}
 									}
 									metricToSend[req.rpc][s] = fval
+									fmt.Printf("Update Field value: %s - %v\n", metricToSend[req.rpc][s].shortName, metricToSend[req.rpc][s].currentValue) // debug
 								}
 							}
 
