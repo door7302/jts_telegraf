@@ -131,7 +131,7 @@ func (c *NETCONF) Start(acc telegraf.Accumulator) error {
 
 					// update xpath
 					xpath += node + "/"
-					xpath = parent
+					parent = xpath
 
 					field.tags = append(field.tags, xpath+attribut)
 
