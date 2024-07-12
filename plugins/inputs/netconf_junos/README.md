@@ -16,6 +16,9 @@ This plugin consumes Netconf data coming from Juniper (Junos/EVO) devices
   ## redial in case of failures after
   redial = "10s"
 
+  ## Time Layout for epoch convertion - specify a sample Date/Time layout - default layout is the following:
+  time_layout = "2006-01-02 15:04:05 MST"
+
   [[inputs.netconf_junos.subscription]]
     ## Name of the measurement that will be emitted
     name = "ifcounters"
@@ -26,7 +29,7 @@ This plugin consumes Netconf data coming from Juniper (Junos/EVO) devices
     ## A list of xpath lite + type to collect / encode 
     ## Each entry in the list is made of: <xpath>:<type>
     ## - xpath lite 
-    ## a type of encoding (supported types : int, float, string, epoch)
+    ## a type of encoding (supported types : int, float, string, epoch, epoch_ms, epoch_us, epoch_ns)
     ## 
     ## The xpath lite should follow the rpc reply XML document. Optional: you can include btw [] the KEY's name that must use to detect the loop 
     fields = ["/interface-information/physical-interface[name]/speed:string", 

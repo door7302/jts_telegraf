@@ -20,8 +20,7 @@ import (
 	"golang.org/x/crypto/ssh"
 )
 
-const maxTagStackDepth = 5
-const layout = "2006-01-02 15:04:05 MST"
+var layout string
 
 // Netconf plugin instance
 type NETCONF struct {
@@ -31,6 +30,8 @@ type NETCONF struct {
 	// Netconf target credentials
 	Username string `toml:"username"`
 	Password string `toml:"password"`
+
+	TimeLayout string `toml:"time_layout"`
 
 	// Redial
 	Redial config.Duration `toml:"redial"`
@@ -96,6 +97,12 @@ func (c *NETCONF) Start(acc telegraf.Accumulator) error {
 		return fmt.Errorf("redial duration must be positive")
 	}
 
+	// check Time Layout for epoch convertion
+	if c.TimeLayout == "" {
+		layout = "2006-01-02 15:04:05 MST"
+	} else {
+		layout = c.TimeLayout
+	}
 	// parse the configuration to create the requests
 	for _, s := range c.Subscriptions {
 		var r req
@@ -388,6 +395,33 @@ func (c *NETCONF) subscribeNETCONF(ctx context.Context, address string, u string
 												// keep string as type in case of error
 												fval.currentValue = value
 											} else {
+												fval.currentValue = t.Unix()
+											}
+											fval.visited = true
+										case "epoch_ms":
+											t, err := time.Parse(layout, value)
+											if err != nil {
+												// keep string as type in case of error
+												fval.currentValue = value
+											} else {
+												fval.currentValue = t.UnixMilli()
+											}
+											fval.visited = true
+										case "epoch_us":
+											t, err := time.Parse(layout, value)
+											if err != nil {
+												// keep string as type in case of error
+												fval.currentValue = value
+											} else {
+												fval.currentValue = t.UnixMicro()
+											}
+											fval.visited = true
+										case "epoch_ns":
+											t, err := time.Parse(layout, value)
+											if err != nil {
+												// keep string as type in case of error
+												fval.currentValue = value
+											} else {
 												fval.currentValue = t.UnixNano()
 											}
 											fval.visited = true
@@ -452,6 +486,9 @@ const sampleConfig = `
   ## redial in case of failures after
   redial = "10s"
 
+  ## Time Layout for epoch convertion - specify a sample Date/Time layout - default layout is the following:
+  time_layout = "2006-01-02 15:04:05 MST"
+
   [[inputs.netconf_junos.subscription]]
     ## Name of the measurement that will be emitted
     name = "ifcounters"
@@ -462,7 +499,7 @@ const sampleConfig = `
     ## A list of xpath lite + type to collect / encode 
     ## Each entry in the list is made of: <xpath>:<type>
     ## - xpath lite 
-    ## - a type of encoding (supported types : int, float, string, epoch)
+    ## - a type of encoding (supported types : int, float, string, epoch, epoch_ms, epoch_us, epoch_ns)
     ## 
     ## The xpath lite should follow the rpc reply XML document. Optional: you can include btw [] the KEY's name that must use to detect the loop 
     fields = ["/interface-information/physical-interface[name]/speed:string", 
