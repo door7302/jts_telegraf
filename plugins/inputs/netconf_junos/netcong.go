@@ -182,17 +182,6 @@ func (c *NETCONF) Start(acc telegraf.Accumulator) error {
 
 		requests = append(requests, r)
 	}
-	// debug ----
-	for _, r := range requests {
-		fmt.Printf("\n Request for RPC %s\n", r.rpc)
-		for k, v := range parents[r.rpc] {
-			fmt.Printf("    Parent Name: %s\n", k)
-			for _, i := range v {
-				fmt.Printf("        Child: %s\n", i)
-			}
-		}
-	}
-	// ----
 
 	// Create a goroutine for each device, dial and subscribe
 	c.wg.Add(len(c.Addresses))
@@ -248,15 +237,12 @@ func (c *NETCONF) subscribeNETCONF(ctx context.Context, address string, u string
 		metricToSend[req.rpc] = make(map[string]netconfMetric)
 		tagTable[req.rpc] = make(map[string]tagEntry)
 		for k, v := range req.fields {
-			fmt.Printf("Add metric: %s\n", k) // debug
 			metricToSend[req.rpc][k] = netconfMetric{shortName: v.shortName, fieldType: v.fieldType, currentValue: "", visited: false, tags: v.tags}
 		}
 		for k, v := range allTags {
-			fmt.Printf("Add tag: %s\n", k) // debug
 			tagTable[req.rpc][k] = v
 		}
 	}
-	fmt.Printf("---- DECODE ----\n\n") // debug
 	// compute tick - add jitter to avoid thread sync
 	jitter := time.Duration(1000 + rand.Intn(10))
 	tick := jitter * time.Millisecond
@@ -323,17 +309,14 @@ func (c *NETCONF) subscribeNETCONF(ctx context.Context, address string, u string
 							}
 							// Remove trailing /
 							s = s[:len(s)-1]
-							fmt.Printf("Found XPATH: %s\n", s) // debug
 							// First check if xpath is a parent - if parent you need to prepare metric to send
 							pval, ok := allParents[req.rpc][s]
 							if ok {
-								fmt.Printf("XPATH is a parent: %s\n", s) // debug
 								// time to check all fields attached to the parent
 								for _, f := range pval {
 									// first check field has been visited or not
 									med, ok := metricToSend[req.rpc][f]
 									if ok && med.visited {
-										fmt.Printf("Field is visited: %s - %v\n", med.shortName, med.currentValue) // debug
 										// create the metric
 										medTags := map[string]string{
 											"device": address,
@@ -343,7 +326,6 @@ func (c *NETCONF) subscribeNETCONF(ctx context.Context, address string, u string
 											tVal, ok := tagTable[req.rpc][z]
 											if ok {
 												if tVal.visited {
-													fmt.Printf("Add visited tag: %s - %v\n", tVal.shortName, tVal.currentValue) // debug
 													medTags[tVal.shortName] = tVal.currentValue
 												}
 											}
@@ -356,7 +338,6 @@ func (c *NETCONF) subscribeNETCONF(ctx context.Context, address string, u string
 								}
 								// now reset all fields and tags associated to parent
 								for _, f := range pval {
-									fmt.Printf("Reset parent children: %s\n", s) // debug
 									med, ok := metricToSend[req.rpc][f]
 									// this is a field
 									if ok {
@@ -378,17 +359,14 @@ func (c *NETCONF) subscribeNETCONF(ctx context.Context, address string, u string
 								// if not parent check if it's a tag
 								tval, ok := tagTable[req.rpc][s]
 								if ok {
-									fmt.Printf("XPATH is a tag: %s\n", s) // debug
 									tval.currentValue = value
 									tval.visited = true
 									tagTable[req.rpc][s] = tval
-									fmt.Printf("Update TAG value: %s - %v\n", tagTable[req.rpc][s].shortName, tagTable[req.rpc][s].currentValue) // debug
 
 								} else {
 									// otherwise check if it's a field to track
 									fval, ok := metricToSend[req.rpc][s]
 									if ok {
-										fmt.Printf("XPATH is a field: %s\n", s) // debug
 										switch fval.fieldType {
 										case "int":
 											fval.currentValue, err = strconv.Atoi(value)
@@ -419,7 +397,6 @@ func (c *NETCONF) subscribeNETCONF(ctx context.Context, address string, u string
 											fval.visited = true
 										}
 										metricToSend[req.rpc][s] = fval
-										fmt.Printf("Update Field value: %s - %v\n", metricToSend[req.rpc][s].shortName, metricToSend[req.rpc][s].currentValue) // debug
 									}
 								}
 							}
@@ -429,81 +406,6 @@ func (c *NETCONF) subscribeNETCONF(ctx context.Context, address string, u string
 								xpath = xpath[:len(xpath)-1]
 							}
 
-							/*
-							   // check if xpath matches one field's xpath
-							   data, ok := req.hashTable[s]
-
-							   if ok {
-							       // Update TAG of all related metrics
-							       if data.metricType == "tag" {
-							           tagIdx := data.tagIdx
-
-							           for _, k := range data.masterKeys {
-
-							               v, ok := metricToSend[req.rpc][k]
-							               if ok {
-							                   // update TAG for each metric
-							                   v.keyTag[tagIdx] = data.shortName
-							                   v.valueTag[tagIdx] = value
-							                   v.valueFilled = tagIdx + 1
-							                   metricToSend[req.rpc][k] = v
-							               }
-							           }
-
-							       } else {
-							           // Update field of all related metrics
-							           for _, k := range data.masterKeys {
-
-							               v, ok := metricToSend[req.rpc][k]
-							               if ok {
-							                   v.keyField = data.shortName
-							                   switch data.metricType {
-							                   case "int":
-							                       v.valueField, err = strconv.Atoi(value)
-							                       if err != nil {
-							                           // keep string as type in case of error
-							                           v.valueField = value
-							                       }
-							                   case "float":
-							                       v.valueField, err = strconv.ParseFloat(value, 64)
-							                       if err != nil {
-							                           // keep string as type in case of error
-							                           v.valueField = value
-							                       }
-							                   case "epoch":
-							                       t, err := time.Parse(layout, value)
-							                       if err != nil {
-							                           // keep string as type in case of error
-							                           v.valueField = value
-							                       } else {
-							                           v.valueField = t.UnixNano()
-							                       }
-
-							                   default:
-							                       // Keep value as string for all other types
-							                       v.valueField = value
-							                   }
-							                   v.valueFilled = v.valueFilled + 1
-
-							                   // check if Metric should be sent
-							                   if v.valueFilled > v.tagLength {
-							                       tags := map[string]string{
-							                           "device": address,
-							                       }
-							                       for ind := 0; ind < v.tagLength; ind++ {
-							                           tags[v.keyTag[ind]] = v.valueTag[ind]
-							                       }
-							                       if err := grouper.Add(req.measurement, tags, timestamp, v.keyField, v.valueField); err != nil {
-							                           c.Log.Errorf("cannot add to grouper: %v", err)
-							                       }
-							                       // reduce of one tag - once metric sent
-							                       v.valueFilled = v.tagLength - 1
-							                   }
-							                   metricToSend[req.rpc][k] = v
-							               }
-							           }
-							       }
-							   }*/
 						case xml.CharData:
 							// extract value
 							value = strings.TrimSpace(strings.ReplaceAll(string(element), "\n", ""))
@@ -563,9 +465,9 @@ const sampleConfig = `
     ## - a type of encoding (supported types : int, float, string, epoch)
     ## 
     ## The xpath lite should follow the rpc reply XML document. Optional: you can include btw [] the KEY's name that must use to detect the loop 
-    fields = ["/interface-information/physical-interface[ifname]/speed:string", 
-            "/interface-information/physical-interface[ifname]/traffic-statistics/input-packets:int",
-            "/interface-information/physical-interface[ifname]/traffic-statistics/output-packets:int",
+    fields = ["/interface-information/physical-interface[name]/speed:string", 
+            "/interface-information/physical-interface[name]/traffic-statistics/input-packets:int",
+            "/interface-information/physical-interface[name]/traffic-statistics/output-packets:int",
             ]
     ## Interval to request the RPC
     sample_interval = "30s"
