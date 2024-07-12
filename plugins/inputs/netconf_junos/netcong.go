@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/xml"
 	"fmt"
+	"math/rand"
 	"strconv"
 	"strings"
 	"sync"
@@ -17,7 +18,6 @@ import (
 	"github.com/openshift-telco/go-netconf-client/netconf"
 	"github.com/openshift-telco/go-netconf-client/netconf/message"
 	"golang.org/x/crypto/ssh"
-	"golang.org/x/exp/rand"
 )
 
 const maxTagStackDepth = 5
