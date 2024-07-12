@@ -26,12 +26,12 @@ This plugin consumes Netconf data coming from Juniper (Junos/EVO) devices
     ## A list of xpath lite + type to collect / encode 
     ## Each entry in the list is made of: <xpath>:<type>
     ## - xpath lite 
-    ## - a type of encoding (supported types : int, float, string)
+    ## a type of encoding (supported types : int, float, string, epoch)
     ## 
     ## The xpath lite should follow the rpc reply XML document. Optional: you can include btw [] the KEY's name that must use to detect the loop 
-    fields = ["/interface-information/physical-interface[ifname]/speed:string", 
-              "/interface-information/physical-interface[ifname]/traffic-statistics/input-packets:int",
-              "/interface-information/physical-interface[ifname]/traffic-statistics/output-packets:int",
+    fields = ["/interface-information/physical-interface[name]/speed:string", 
+              "/interface-information/physical-interface[name]/traffic-statistics/input-packets:int",
+              "/interface-information/physical-interface[name]/traffic-statistics/output-packets:int",
              ]
     ## Interval to request the RPC
     sample_interval = "30s"
