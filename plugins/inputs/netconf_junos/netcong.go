@@ -129,9 +129,9 @@ func (c *NETCONF) Start(acc telegraf.Accumulator) error {
 					node := e[0:strings.Index(e, "[")]
 					attribut := e[strings.Index(e, "[")+1 : strings.Index(e, "]")]
 
-					// update xpath
+					// update xpath and parent
+					parent = xpath + node
 					xpath += node + "/"
-					parent = xpath
 
 					field.tags = append(field.tags, xpath+attribut)
 
