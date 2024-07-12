@@ -75,7 +75,6 @@ type tagEntry struct {
 type netconfMetric struct {
 	shortName    string
 	fieldType    string
-	parentNode   string
 	currentValue interface{}
 	visited      bool
 	tags         []string
@@ -182,6 +181,17 @@ func (c *NETCONF) Start(acc telegraf.Accumulator) error {
 
 		requests = append(requests, r)
 	}
+	// debug ----
+	for _, r := range requests {
+		fmt.Printf("\n Request for RPC %s\n", r.rpc)
+		for k, v := range parents[r.rpc] {
+			fmt.Printf("    Parent Name: %s\n", k)
+			for _, i := range v {
+				fmt.Printf("        Child: %s\n", i)
+			}
+		}
+	}
+	// ----
 
 	// Create a goroutine for each device, dial and subscribe
 	c.wg.Add(len(c.Addresses))
@@ -312,10 +322,50 @@ func (c *NETCONF) subscribeNETCONF(ctx context.Context, address string, u string
 							s = s[:len(s)-1]
 
 							// First check if xpath is a parent - if parent you need to prepare metric to send
-							_, ok := allParents[req.rpc][s]
+							pval, ok := allParents[req.rpc][s]
 							if ok {
-								// to do
-
+								// time to check all fields attached to the parent
+								for _, f := range pval {
+									// first check field has been visited or not
+									med, ok := metricToSend[req.rpc][f]
+									if ok && med.visited {
+										// create the metric
+										medTags := map[string]string{
+											"device": address,
+										}
+										for _, z := range med.tags {
+											// check if tag has been visited before adding it
+											tVal, ok := tagTable[req.rpc][z]
+											if ok {
+												if tVal.visited {
+													medTags[tVal.shortName] = tVal.currentValue
+												}
+											}
+										}
+										// add metric to groupper
+										if err := grouper.Add(req.measurement, medTags, timestamp, med.shortName, med.currentValue); err != nil {
+											c.Log.Errorf("cannot add to grouper: %v", err)
+										}
+									}
+								}
+								// now reset all fields and tags associated to parent
+								for _, f := range pval {
+									med, ok := metricToSend[req.rpc][f]
+									// this is a field
+									if ok {
+										med.currentValue = ""
+										med.visited = false
+										metricToSend[req.rpc][f] = med
+									} else {
+										// this is a tag
+										tag, ok := tagTable[req.rpc][f]
+										if ok {
+											tag.currentValue = ""
+											tag.visited = false
+											tagTable[req.rpc][f] = tag
+										}
+									}
+								}
 							} else {
 								// if not parent check if it's a tag
 								tval, ok := tagTable[req.rpc][s]
