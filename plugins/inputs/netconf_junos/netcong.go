@@ -141,6 +141,16 @@ func (c *NETCONF) Start(acc telegraf.Accumulator) error {
 					// save child of the parent if new
 					_, ok := parents[s.Rpc][parent]
 					if !ok {
+						parents[s.Rpc][parent] = make([]string, 0)
+					}
+					exist := false
+					for _, e := range parents[s.Rpc][parent] {
+						if e == xpath+attribut {
+							exist = true
+							break
+						}
+					}
+					if !exist {
 						parents[s.Rpc][parent] = append(parents[s.Rpc][parent], xpath+attribut)
 					}
 
@@ -155,8 +165,14 @@ func (c *NETCONF) Start(acc telegraf.Accumulator) error {
 			field.fieldType = split_field[1]
 
 			// save child of the parent if new
-			_, ok := parents[s.Rpc][parent]
-			if !ok {
+			exist := false
+			for _, e := range parents[s.Rpc][parent] {
+				if e == xpath {
+					exist = true
+					break
+				}
+			}
+			if !exist {
 				parents[s.Rpc][parent] = append(parents[s.Rpc][parent], xpath)
 			}
 
