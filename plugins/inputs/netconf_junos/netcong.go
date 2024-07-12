@@ -248,13 +248,15 @@ func (c *NETCONF) subscribeNETCONF(ctx context.Context, address string, u string
 		metricToSend[req.rpc] = make(map[string]netconfMetric)
 		tagTable[req.rpc] = make(map[string]tagEntry)
 		for k, v := range req.fields {
+			fmt.Printf("Add metric: %s\n", k) // debug
 			metricToSend[req.rpc][k] = netconfMetric{shortName: v.shortName, fieldType: v.fieldType, currentValue: "", visited: false, tags: v.tags}
 		}
 		for k, v := range allTags {
+			fmt.Printf("Add tag: %s\n", k) // debug
 			tagTable[req.rpc][k] = v
 		}
 	}
-
+	fmt.Printf("---- DECODE ----\n\n") // debug
 	// compute tick - add jitter to avoid thread sync
 	jitter := time.Duration(1000 + rand.Intn(10))
 	tick := jitter * time.Millisecond
@@ -372,20 +374,21 @@ func (c *NETCONF) subscribeNETCONF(ctx context.Context, address string, u string
 									}
 								}
 							} else {
-								fmt.Printf("XPATH is a tag: %s\n", s) // debug
+
 								// if not parent check if it's a tag
 								tval, ok := tagTable[req.rpc][s]
 								if ok {
+									fmt.Printf("XPATH is a tag: %s\n", s) // debug
 									tval.currentValue = value
 									tval.visited = true
 									tagTable[req.rpc][s] = tval
 									fmt.Printf("Update TAG value: %s - %v\n", tagTable[req.rpc][s].shortName, tagTable[req.rpc][s].currentValue) // debug
 
 								} else {
-									fmt.Printf("XPATH is a field: %s\n", s) // debug
 									// otherwise check if it's a field to track
 									fval, ok := metricToSend[req.rpc][s]
 									if ok {
+										fmt.Printf("XPATH is a field: %s\n", s) // debug
 										switch fval.fieldType {
 										case "int":
 											fval.currentValue, err = strconv.Atoi(value)
