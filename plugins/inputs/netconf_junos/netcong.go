@@ -104,6 +104,7 @@ func (c *NETCONF) Start(acc telegraf.Accumulator) error {
 		r.rpc = s.Rpc
 		r.interval = uint64(time.Duration(s.SampleInterval).Nanoseconds())
 		r.fields = make(map[string]fieldEntry)
+		parents[s.Rpc] = map[string][]string{}
 
 		// first parse paths
 		for _, p := range s.Fields {
