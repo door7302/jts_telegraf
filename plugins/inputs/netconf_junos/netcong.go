@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/xml"
 	"fmt"
-	"math/rand"
 	"strconv"
 	"strings"
 	"sync"
@@ -18,6 +17,7 @@ import (
 	"github.com/openshift-telco/go-netconf-client/netconf"
 	"github.com/openshift-telco/go-netconf-client/netconf/message"
 	"golang.org/x/crypto/ssh"
+	"golang.org/x/exp/rand"
 )
 
 const maxTagStackDepth = 5
@@ -57,35 +57,37 @@ type req struct {
 	measurement string
 	interval    uint64
 	rpc         string
-	fieldList   []fieldEntry
-	hashTable   map[string]xpathEntry
+	fields      map[string]fieldEntry
 }
 
 type fieldEntry struct {
-	fieldName string
-	tagLength int
+	shortName string
+	fieldType string
+	tags      []string
 }
 
-type xpathEntry struct {
-	shortName  string
-	masterKeys []string
-	metricType string
-	tagIdx     int
+type tagEntry struct {
+	shortName    string
+	currentValue string
+	visited      bool
 }
 
 type netconfMetric struct {
-	tagLength   int
-	keyTag      []string
-	valueTag    []string
-	keyField    string
-	valueField  interface{}
-	valueFilled int
+	shortName    string
+	fieldType    string
+	parentNode   string
+	currentValue interface{}
+	visited      bool
+	tags         []string
 }
 
 // Start the ssh listener service
 func (c *NETCONF) Start(acc telegraf.Accumulator) error {
 	var ctx context.Context
-	var requests []req
+
+	tags := make(map[string]tagEntry)
+	requests := make([]req, 0)
+	parents := make(map[string]map[string][]string)
 
 	c.acc = acc
 	ctx, c.cancel = context.WithCancel(context.Background())
@@ -96,66 +98,72 @@ func (c *NETCONF) Start(acc telegraf.Accumulator) error {
 	}
 
 	// parse the configuration to create the requests
-	requests = make([]req, 0)
 	for _, s := range c.Subscriptions {
 		var r req
+
 		r.measurement = s.Name
 		r.rpc = s.Rpc
 		r.interval = uint64(time.Duration(s.SampleInterval).Nanoseconds())
-		r.hashTable = make(map[string]xpathEntry)
-		r.fieldList = make([]fieldEntry, 0)
+		r.fields = make(map[string]fieldEntry)
 
 		// first parse paths
 		for _, p := range s.Fields {
+			var field fieldEntry
+			field.tags = make([]string, 0)
+
 			split_field := strings.Split(p, ":")
 			if len(split_field) != 2 {
 				c.Log.Errorf("Malformed field - skip it: %p", p)
 				continue
 			}
 			split_xpath := strings.Split(split_field[0], "/")
+
 			xpath := ""
-			last := ""
-			numberOfTags := 0
-			tag_idx := 0
+			shortName := ""
+			parent := ""
+
 			for _, e := range split_xpath {
 				// there is an attribute
 				if strings.Contains(e, "[") && strings.Contains(e, "]") {
-					numberOfTags += 1
 					// extract the key and concatenate with xpath
-					text := e[0:strings.Index(e, "[")]
+					node := e[0:strings.Index(e, "[")]
 					attribut := e[strings.Index(e, "[")+1 : strings.Index(e, "]")]
-					xpath += text + "/"
-					// create the hashtable for fast search
-					mapInstance, ok := r.hashTable[xpath+attribut]
+
+					// update xpath
+					xpath += node + "/"
+					xpath = parent
+
+					field.tags = append(field.tags, xpath+attribut)
+
+					// Save tag
+					tags[xpath+attribut] = tagEntry{shortName: attribut}
+
+					// save child of the parent if new
+					_, ok := parents[s.Rpc][parent]
 					if !ok {
-						r.hashTable[xpath+attribut] = xpathEntry{masterKeys: make([]string, 0), metricType: "tag", shortName: attribut, tagIdx: tag_idx}
-						tag_idx += 1
-						mapInstance = r.hashTable[xpath+attribut]
-						mapInstance.masterKeys = append(mapInstance.masterKeys, p)
-						r.hashTable[xpath+attribut] = mapInstance
-					} else {
-						mapInstance.masterKeys = append(mapInstance.masterKeys, p)
-						// to manage tag hierarchy
-						tag_idx += 1
-						r.hashTable[xpath+attribut] = mapInstance
+						parents[s.Rpc][parent] = append(parents[s.Rpc][parent], xpath+attribut)
 					}
+
 				} else {
 					xpath += e + "/"
-					last = e
+					shortName = e
 				}
 			}
-			mapInstance, ok := r.hashTable[xpath[0:len(xpath)-1]]
+			// Remove trailing /
+			xpath = xpath[:len(xpath)-1]
+			field.shortName = shortName
+			field.fieldType = split_field[1]
+
+			// save child of the parent if new
+			_, ok := parents[s.Rpc][parent]
 			if !ok {
-				r.hashTable[xpath[0:len(xpath)-1]] = xpathEntry{masterKeys: make([]string, 0), metricType: split_field[1], shortName: last}
-				mapInstance = r.hashTable[xpath[0:len(xpath)-1]]
-				mapInstance.masterKeys = append(mapInstance.masterKeys, p)
-				r.hashTable[xpath[0:len(xpath)-1]] = mapInstance
-			} else {
-				mapInstance.masterKeys = append(mapInstance.masterKeys, p)
-				r.hashTable[xpath[0:len(xpath)-1]] = mapInstance
+				parents[s.Rpc][parent] = append(parents[s.Rpc][parent], xpath)
 			}
-			r.fieldList = append(r.fieldList, fieldEntry{fieldName: p, tagLength: numberOfTags})
+
+			// Update fields map
+			r.fields[xpath] = field
 		}
+
 		requests = append(requests, r)
 	}
 
@@ -165,7 +173,7 @@ func (c *NETCONF) Start(acc telegraf.Accumulator) error {
 		go func(address string) {
 			defer c.wg.Done()
 			for ctx.Err() == nil {
-				if err := c.subscribeNETCONF(ctx, address, c.Username, c.Password, requests); err != nil && ctx.Err() == nil {
+				if err := c.subscribeNETCONF(ctx, address, c.Username, c.Password, requests, tags, parents); err != nil && ctx.Err() == nil {
 					acc.AddError(err)
 				}
 				select {
@@ -175,11 +183,13 @@ func (c *NETCONF) Start(acc telegraf.Accumulator) error {
 			}
 		}(addr)
 	}
+
 	return nil
 }
 
 // subscribeNETCONF and extract telemetry data
-func (c *NETCONF) subscribeNETCONF(ctx context.Context, address string, u string, p string, r []req) error {
+func (c *NETCONF) subscribeNETCONF(ctx context.Context, address string, u string, p string, r []req, allTags map[string]tagEntry, allParents map[string]map[string][]string) error {
+
 	sshConfig := &ssh.ClientConfig{
 		User:            u,
 		Auth:            []ssh.AuthMethod{ssh.Password(p)},
@@ -202,13 +212,19 @@ func (c *NETCONF) subscribeNETCONF(ctx context.Context, address string, u string
 	c.Log.Debugf("Connection to Netconf device %s established", address)
 	defer c.Log.Debugf("Connection to Netconf device %s closed", address)
 
+	metricToSend := make(map[string]map[string]netconfMetric)
+	tagTable := make(map[string]map[string]tagEntry)
+
 	// prepare the map for searching metrics - unique per router - derived from initial request
-	var metricToSend map[string]map[string]netconfMetric
-	metricToSend = make(map[string]map[string]netconfMetric)
+	// for each RPC and each field
 	for _, req := range r {
 		metricToSend[req.rpc] = make(map[string]netconfMetric)
-		for _, k := range req.fieldList {
-			metricToSend[req.rpc][k.fieldName] = netconfMetric{tagLength: k.tagLength, keyTag: make([]string, maxTagStackDepth), valueTag: make([]string, maxTagStackDepth), keyField: "", valueField: "", valueFilled: 0}
+		tagTable[req.rpc] = make(map[string]tagEntry)
+		for k, v := range req.fields {
+			metricToSend[req.rpc][k] = netconfMetric{shortName: v.shortName, fieldType: v.fieldType, currentValue: "", visited: false, tags: v.tags}
+		}
+		for k, v := range allTags {
+			tagTable[req.rpc][k] = v
 		}
 	}
 
@@ -276,92 +292,143 @@ func (c *NETCONF) subscribeNETCONF(ctx context.Context, address string, u string
 							for _, x := range xpath {
 								s += x + "/"
 							}
-
 							// Remove trailing /
 							s = s[:len(s)-1]
+
+							// First check if xpath is a parent - if parent you need to prepare metric to send
+							_, ok := allParents[req.rpc][s]
+							if ok {
+								// to do
+
+							} else {
+								// if not parent check if it's a tag
+								tval, ok := tagTable[req.rpc][s]
+								if ok {
+									tval.currentValue = value
+									tval.visited = true
+									tagTable[req.rpc][s] = tval
+								} else {
+									// otherwise check if it's a field to track
+									fval, ok := metricToSend[req.rpc][s]
+									if ok {
+										switch fval.fieldType {
+										case "int":
+											fval.currentValue, err = strconv.Atoi(value)
+											if err != nil {
+												// keep string as type in case of error
+												fval.currentValue = value
+											}
+											fval.visited = true
+										case "float":
+											fval.currentValue, err = strconv.ParseFloat(value, 64)
+											if err != nil {
+												// keep string as type in case of error
+												fval.currentValue = value
+											}
+											fval.visited = true
+										case "epoch":
+											t, err := time.Parse(layout, value)
+											if err != nil {
+												// keep string as type in case of error
+												fval.currentValue = value
+											} else {
+												fval.currentValue = t.UnixNano()
+											}
+											fval.visited = true
+										default:
+											// Keep value as string for all other types
+											fval.currentValue = value
+											fval.visited = true
+										}
+									}
+									metricToSend[req.rpc][s] = fval
+								}
+							}
 
 							// remove the last elem of the xpath list
 							if len(xpath) > 0 {
 								xpath = xpath[:len(xpath)-1]
 							}
 
-							// check if xpath matches one field's xpath
-							data, ok := req.hashTable[s]
-							if ok {
-								// Update TAG of all related metrics
-								if data.metricType == "tag" {
-									tagIdx := data.tagIdx
+							/*
+							   // check if xpath matches one field's xpath
+							   data, ok := req.hashTable[s]
 
-									for _, k := range data.masterKeys {
-										v, ok := metricToSend[req.rpc][k]
-										if ok {
-											// update TAG for each metric
-											v.keyTag[tagIdx] = data.shortName
-											v.valueTag[tagIdx] = value
-											v.valueFilled = tagIdx + 1
-											metricToSend[req.rpc][k] = v
-										}
-									}
+							   if ok {
+							       // Update TAG of all related metrics
+							       if data.metricType == "tag" {
+							           tagIdx := data.tagIdx
 
-								} else {
-									// Update field of all related metrics
-									for _, k := range data.masterKeys {
-										v, ok := metricToSend[req.rpc][k]
-										if ok {
-											// update TAG for each metric
-											v.keyField = data.shortName
-											switch data.metricType {
-											case "int":
-												v.valueField, err = strconv.Atoi(value)
-												if err != nil {
-													// keep string as type in case of error
-													v.valueField = value
-												}
-											case "float":
-												v.valueField, err = strconv.ParseFloat(value, 64)
-												if err != nil {
-													// keep string as type in case of error
-													v.valueField = value
-												}
-											case "epoch":
-												t, err := time.Parse(layout, value)
-												if err != nil {
-													// keep string as type in case of error
-													v.valueField = value
-												} else {
-													v.valueField = t.UnixNano()
-												}
+							           for _, k := range data.masterKeys {
 
-											default:
-												// Keep value as string for all other types
-												v.valueField = value
-											}
-											v.valueFilled += 1
+							               v, ok := metricToSend[req.rpc][k]
+							               if ok {
+							                   // update TAG for each metric
+							                   v.keyTag[tagIdx] = data.shortName
+							                   v.valueTag[tagIdx] = value
+							                   v.valueFilled = tagIdx + 1
+							                   metricToSend[req.rpc][k] = v
+							               }
+							           }
 
-											// check if Metric should be sent
-											if v.valueFilled > v.tagLength {
-												tags := map[string]string{
-													"device": address,
-												}
-												for ind := 0; ind < v.tagLength; ind++ {
-													tags[v.keyTag[ind]] = v.valueTag[ind]
-												}
-												if err := grouper.Add(req.measurement, tags, timestamp, v.keyField, v.valueField); err != nil {
-													c.Log.Errorf("cannot add to grouper: %v", err)
-												}
-												// reduce of one tag - once metric sent
-												v.valueFilled = v.tagLength - 1
-											}
-											metricToSend[req.rpc][k] = v
-										}
-									}
-								}
-							}
+							       } else {
+							           // Update field of all related metrics
+							           for _, k := range data.masterKeys {
+
+							               v, ok := metricToSend[req.rpc][k]
+							               if ok {
+							                   v.keyField = data.shortName
+							                   switch data.metricType {
+							                   case "int":
+							                       v.valueField, err = strconv.Atoi(value)
+							                       if err != nil {
+							                           // keep string as type in case of error
+							                           v.valueField = value
+							                       }
+							                   case "float":
+							                       v.valueField, err = strconv.ParseFloat(value, 64)
+							                       if err != nil {
+							                           // keep string as type in case of error
+							                           v.valueField = value
+							                       }
+							                   case "epoch":
+							                       t, err := time.Parse(layout, value)
+							                       if err != nil {
+							                           // keep string as type in case of error
+							                           v.valueField = value
+							                       } else {
+							                           v.valueField = t.UnixNano()
+							                       }
+
+							                   default:
+							                       // Keep value as string for all other types
+							                       v.valueField = value
+							                   }
+							                   v.valueFilled = v.valueFilled + 1
+
+							                   // check if Metric should be sent
+							                   if v.valueFilled > v.tagLength {
+							                       tags := map[string]string{
+							                           "device": address,
+							                       }
+							                       for ind := 0; ind < v.tagLength; ind++ {
+							                           tags[v.keyTag[ind]] = v.valueTag[ind]
+							                       }
+							                       if err := grouper.Add(req.measurement, tags, timestamp, v.keyField, v.valueField); err != nil {
+							                           c.Log.Errorf("cannot add to grouper: %v", err)
+							                       }
+							                       // reduce of one tag - once metric sent
+							                       v.valueFilled = v.tagLength - 1
+							                   }
+							                   metricToSend[req.rpc][k] = v
+							               }
+							           }
+							       }
+							   }*/
 						case xml.CharData:
 							// extract value
 							value = strings.TrimSpace(strings.ReplaceAll(string(element), "\n", ""))
 						}
-
 					}
 					// Add grouped measurements
 					for _, metricToAdd := range grouper.Metrics() {
@@ -382,6 +449,7 @@ func (c *NETCONF) subscribeNETCONF(ctx context.Context, address string, u string
 			counters[k] += uint64(delta)
 		}
 	}
+
 	return nil
 }
 
@@ -428,7 +496,7 @@ const sampleConfig = `
     name = "COS"
     junos_rpc = "<get-interface-queue-information></get-interface-queue-information>"
     fields = ["/interface-information/physical-interface[name]/queue-counters/queue[queue-number]/queue-counters-queued-packets:int",]
-	sample_interval = "60s"
+    sample_interval = "60s"
 `
 
 // simple unint64 min func
