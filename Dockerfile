@@ -15,19 +15,17 @@ USER 0
 # Create the telegraf user and necessary directories
 RUN apk update --no-cache && \
     adduser -S -D -H -h / telegraf && \
-    mkdir -p /etc/telegraf /var/metadata /var/cert /etc/telegraf/telegraf.d
-
-# Copy the telegraf.version file and set ownership to the telegraf user
-COPY --chown=telegraf:telegraf telegraf.version /var/metadata/telegraf.version
+    mkdir -p /etc/telegraf /var/cert /etc/telegraf/telegraf.d
 
 # Copy the built telegraf binary from the builder stage
 COPY --from=builder /build/telegraf /
 
-# Ensure the telegraf user owns the necessary directories
-RUN chown -R telegraf:telegraf /etc/telegraf /var/metadata /var/cert /etc/telegraf/telegraf.d
-
 # Switch to the telegraf user
 USER telegraf
+RUN /var/metadata
+
+# Copy the telegraf.version file and set ownership to the telegraf user
+COPY telegraf.version /var/metadata/telegraf.version
 
 # Set the entrypoint
 ENTRYPOINT ["./telegraf"]
