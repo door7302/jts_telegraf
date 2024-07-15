@@ -10,21 +10,17 @@ RUN go build -ldflags "${LDFLAGS}" ./cmd/telegraf
 
 FROM alpine:latest
 
-# Install gosu
 RUN apk update --no-cache && \
-    adduser -S -D -H -h / telegraf && \
-    apk add --no-cache curl gnupg && \
-    curl -o /usr/local/bin/gosu -SL "https://github.com/tianon/gosu/releases/download/1.14/gosu-amd64" && \
-    chmod +x /usr/local/bin/gosu
-    
+    adduser -S -D -H -h / telegraf
+
 USER 0
 RUN mkdir -p /etc/telegraf /var/metadata /var/cert /etc/telegraf/telegraf.d
-COPY telegraf.version /telegraf.version
+COPY telegraf.version /var/metadata/telegraf.version
 COPY --from=builder /build/telegraf /
-COPY entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
+
+# Ensure correct permissions for the telegraf user
+RUN chown -R telegraf:telegraf /var/metadata
 
 USER telegraf
 
-ENTRYPOINT ["/entrypoint.sh"]
-CMD ["./telegraf"]
+ENTRYPOINT ["./telegraf"]
