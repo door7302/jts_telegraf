@@ -14,12 +14,9 @@ RUN apk update --no-cache && \
     adduser -S -D -H -h / telegraf
 USER 0
 RUN mkdir -p /etc/telegraf /var/metadata /var/cert /etc/telegraf/telegraf.d
-ADD telegraf.version /var/metadata/telegraf.version
-
-USER telegraf
+COPY telegraf.version /var/metadata/telegraf.version
 COPY --from=builder /build/telegraf /
 
-
-EXPOSE 50051/udp
+USER telegraf
 
 ENTRYPOINT ["./telegraf"]
