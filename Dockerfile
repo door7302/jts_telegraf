@@ -12,15 +12,16 @@ FROM alpine:latest
 
 RUN apk update --no-cache && \
     adduser -S -D -H -h / telegraf
-
 USER 0
-RUN mkdir -p /etc/telegraf
-RUN mkdir -p /var/cert
-RUN mkdir -p /etc/telegraf/telegraf.d 
+RUN mkdir -p /etc/telegraf /var/cert /etc/telegraf/telegraf.d
+
 
 USER telegraf
-RUN mkdir -p /var/metadata
 COPY telegraf.version /var/metadata/telegraf.version
+RUN mkdir -p /var/metadata
 COPY --from=builder /build/telegraf /
 
-CMD ["./telegraf"]
+
+EXPOSE 50051/udp
+
+ENTRYPOINT ["./telegraf"]
