@@ -22,7 +22,7 @@ COPY --from=builder /build/telegraf /
 
 # Switch to the telegraf user
 USER telegraf
-RUN /var/metadata
+RUN mkdir /var/metadata
 
 # Copy the telegraf.version file and set ownership to the telegraf user
 COPY telegraf.version /var/metadata/telegraf.version
