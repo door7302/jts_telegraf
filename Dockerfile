@@ -11,6 +11,7 @@ RUN go build -ldflags "${LDFLAGS}" ./cmd/telegraf
 
 FROM alpine:latest
 
+USER 0 
 # Create the telegraf user and necessary directories
 RUN apk update --no-cache && \
     adduser -S -D -H -h / telegraf && \
