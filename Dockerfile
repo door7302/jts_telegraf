@@ -14,7 +14,7 @@ RUN apk update --no-cache && \
     adduser -S -D -H -h / telegraf
 USER 0
 RUN mkdir -p /etc/telegraf /var/metadata /var/cert /etc/telegraf/telegraf.d
-COPY telegraf.version /var/metadata/telegraf.version
+COPY telegraf.version /telegraf.version
 COPY --from=builder /build/telegraf /
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
