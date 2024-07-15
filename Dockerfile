@@ -10,7 +10,7 @@ WORKDIR /build
 RUN go build -ldflags "${LDFLAGS} -X main.version=${VERSION}" ./cmd/telegraf
 
 FROM alpine:latest
-LABEL version="1.0.4"
+LABEL version="1.0.5"
 
 RUN apk update --no-cache && \
     adduser -S -D -H -h / telegraf
