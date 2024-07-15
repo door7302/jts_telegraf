@@ -14,7 +14,9 @@ RUN apk update --no-cache && \
     adduser -S -D -H -h / telegraf
 
 USER 0
-RUN mkdir -p /etc/telegraf /var/cert /etc/telegraf/telegraf.d
+RUN mkdir -p /etc/telegraf
+RUN mkdir -p /var/cert
+RUN mkdir -p /etc/telegraf/telegraf.d 
 
 USER telegraf
 RUN mkdir -p /var/metadata
