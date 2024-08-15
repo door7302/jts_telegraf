@@ -1,6 +1,6 @@
 FROM golang:alpine as builder
 ARG LDFLAGS=""
-ARG VERSION="1.0.5"
+ARG VERSION="1.0.6"
 
 RUN apk --update --no-cache add git build-base gcc
 
