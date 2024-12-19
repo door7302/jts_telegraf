@@ -366,6 +366,14 @@ func networkBytesToFloat32(data []byte) (float32, error) {
 
 	// Convert the uint32 bits to a float32
 	result := math.Float32frombits(bits)
+
+	// Check for overflow (infinite value) and replace with max/min float32 value
+	if math.IsInf(float64(result), 1) {
+		return math.MaxFloat32, nil
+	} else if math.IsInf(float64(result), -1) {
+		return -math.MaxFloat32, nil
+	}
+
 	return result, nil
 }
 
