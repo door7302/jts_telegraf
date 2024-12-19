@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/tls"
+	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -41,6 +42,7 @@ type GNMI struct {
 	Target             string
 	UpdatesOnly        bool `toml:"updates_only"`
 	LongTag            bool `toml:"long_tag"`
+	Bytes2float        bool `toml:"bytes2float"`
 	CheckJnprExtension bool `toml:"check_jnpr_extension"`
 	// gNMI target credentials
 	Username string
@@ -354,8 +356,23 @@ func (c *GNMI) handleSubscribeResponseUpdate(address string, response *gnmiLib.S
 	}
 }
 
+func networkBytesToFloat32(data []byte) (float32, error) {
+	if len(data) != 4 {
+		return 0, fmt.Errorf("invalid data length: expected 4 bytes, got %d", len(data))
+	}
+
+	// Convert the 4 bytes to a uint32 in network byte order
+	bits := binary.BigEndian.Uint32(data)
+
+	// Convert the uint32 bits to a float32
+	result := math.Float32frombits(bits)
+	return result, nil
+}
+
 // HandleTelemetryField and add it to a measurement
 func (c *GNMI) handleTelemetryField(update *gnmiLib.Update, tags map[string]string, prefix string) (string, map[string]interface{}) {
+	var err error
+
 	gpath, aliasPath, err := c.handlePath(update.Path, tags, prefix)
 	if err != nil {
 		c.Log.Errorf("handling path %q failed: %v", update.Path, err)
@@ -376,8 +393,16 @@ func (c *GNMI) handleTelemetryField(update *gnmiLib.Update, tags map[string]stri
 	case *gnmiLib.TypedValue_BoolVal:
 		value = val.BoolVal
 	case *gnmiLib.TypedValue_BytesVal:
-		c.Log.Infof("DEBUG_JTS: %v", val)
-		value = val.BytesVal
+		if c.Bytes2float {
+			value, err = networkBytesToFloat32(val.BytesVal)
+			if err != nil {
+				c.Log.Errorf("unable to convert bytes array to float: %v", err)
+				// Keep as array of bytes
+				value = val.BytesVal
+			}
+		} else {
+			value = val.BytesVal
+		}
 	case *gnmiLib.TypedValue_DecimalVal:
 		value = float64(val.DecimalVal.Digits) / math.Pow(10, float64(val.DecimalVal.Precision))
 	case *gnmiLib.TypedValue_FloatVal:
