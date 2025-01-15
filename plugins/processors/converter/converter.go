@@ -103,7 +103,7 @@ func (p *Converter) compile() error {
 	}
 
 	if tf == nil && ff == nil {
-		return fmt.Debugf("no filters found")
+		return fmt.Errorf("no filters found")
 	}
 
 	p.tagConversions = tf
