@@ -103,7 +103,7 @@ func (p *Converter) compile() error {
 	}
 
 	if tf == nil && ff == nil {
-		return fmt.Errorf("no filters found")
+		return fmt.Debugf("no filters found")
 	}
 
 	p.tagConversions = tf
@@ -179,7 +179,7 @@ func (p *Converter) convertTags(metric telegraf.Metric) {
 			v, ok := toInteger(value)
 			if !ok {
 				metric.RemoveTag(key)
-				p.Log.Errorf("error converting to integer [%T]: %v", value, value)
+				p.Log.Debugf("error converting to integer [%T]: %v", value, value)
 				continue
 			}
 
@@ -191,7 +191,7 @@ func (p *Converter) convertTags(metric telegraf.Metric) {
 			v, ok := toUnsigned(value)
 			if !ok {
 				metric.RemoveTag(key)
-				p.Log.Errorf("error converting to unsigned [%T]: %v", value, value)
+				p.Log.Debugf("error converting to unsigned [%T]: %v", value, value)
 				continue
 			}
 
@@ -204,7 +204,7 @@ func (p *Converter) convertTags(metric telegraf.Metric) {
 			v, ok := toBool(value)
 			if !ok {
 				metric.RemoveTag(key)
-				p.Log.Errorf("error converting to boolean [%T]: %v", value, value)
+				p.Log.Debugf("error converting to boolean [%T]: %v", value, value)
 				continue
 			}
 
@@ -217,7 +217,7 @@ func (p *Converter) convertTags(metric telegraf.Metric) {
 			v, ok := toFloat(value)
 			if !ok {
 				metric.RemoveTag(key)
-				p.Log.Errorf("error converting to float [%T]: %v", value, value)
+				p.Log.Debugf("error converting to float [%T]: %v", value, value)
 				continue
 			}
 
@@ -239,7 +239,7 @@ func (p *Converter) convertFields(metric telegraf.Metric) {
 			v, ok := toString(value)
 			if !ok {
 				metric.RemoveField(key)
-				p.Log.Errorf("error converting to measurement [%T]: %v", value, value)
+				p.Log.Debugf("error converting to measurement [%T]: %v", value, value)
 				continue
 			}
 
@@ -252,7 +252,7 @@ func (p *Converter) convertFields(metric telegraf.Metric) {
 			v, ok := toString(value)
 			if !ok {
 				metric.RemoveField(key)
-				p.Log.Errorf("error converting to tag [%T]: %v", value, value)
+				p.Log.Debugf("error converting to tag [%T]: %v", value, value)
 				continue
 			}
 
@@ -265,7 +265,7 @@ func (p *Converter) convertFields(metric telegraf.Metric) {
 			v, ok := toFloat(value)
 			if !ok {
 				metric.RemoveField(key)
-				p.Log.Errorf("error converting to float [%T]: %v", value, value)
+				p.Log.Debugf("error converting to float [%T]: %v", value, value)
 				continue
 			}
 
@@ -278,7 +278,7 @@ func (p *Converter) convertFields(metric telegraf.Metric) {
 			v, ok := toInteger(value)
 			if !ok {
 				metric.RemoveField(key)
-				p.Log.Errorf("error converting to integer [%T]: %v", value, value)
+				p.Log.Debugf("error converting to integer [%T]: %v", value, value)
 				continue
 			}
 
@@ -291,7 +291,7 @@ func (p *Converter) convertFields(metric telegraf.Metric) {
 			v, ok := toUnsigned(value)
 			if !ok {
 				metric.RemoveField(key)
-				p.Log.Errorf("error converting to unsigned [%T]: %v", value, value)
+				p.Log.Debugf("error converting to unsigned [%T]: %v", value, value)
 				continue
 			}
 
@@ -304,7 +304,7 @@ func (p *Converter) convertFields(metric telegraf.Metric) {
 			v, ok := toBool(value)
 			if !ok {
 				metric.RemoveField(key)
-				p.Log.Errorf("error converting to bool [%T]: %v", value, value)
+				p.Log.Debugf("error converting to bool [%T]: %v", value, value)
 				continue
 			}
 
@@ -317,7 +317,7 @@ func (p *Converter) convertFields(metric telegraf.Metric) {
 			v, ok := toString(value)
 			if !ok {
 				metric.RemoveField(key)
-				p.Log.Errorf("Error converting to string [%T]: %v", value, value)
+				p.Log.Debugf("Error converting to string [%T]: %v", value, value)
 				continue
 			}
 
