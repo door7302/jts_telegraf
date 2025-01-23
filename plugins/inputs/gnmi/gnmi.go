@@ -42,6 +42,7 @@ type GNMI struct {
 	Target             string
 	UpdatesOnly        bool `toml:"updates_only"`
 	LongTag            bool `toml:"long_tag"`
+	LongField          bool `toml:"long_field"`
 	Bytes2float        bool `toml:"bytes2float"`
 	CheckJnprExtension bool `toml:"check_jnpr_extension"`
 	// gNMI target credentials
@@ -294,6 +295,7 @@ func (c *GNMI) handleSubscribeResponseUpdate(address string, response *gnmiLib.S
 			c.Log.Errorf("handling path %q failed: %v", response.Update.Prefix, err)
 		}
 	}
+	fmt.Printf("DEBUG_DR1 %s == %s\n", prefixAliasPath, prefix)
 	prefixTags["source"], _, _ = net.SplitHostPort(address)
 	prefixTags["path"] = prefix
 
@@ -306,6 +308,7 @@ func (c *GNMI) handleSubscribeResponseUpdate(address string, response *gnmiLib.S
 			tags[key] = val
 		}
 		aliasPath, fields := c.handleTelemetryField(update, tags, prefix)
+		fmt.Printf("DEBUG_DR2 %s == %v\n", aliasPath, fields)
 
 		// Inherent valid alias from prefix parsing
 		if len(prefixAliasPath) > 0 && len(aliasPath) == 0 {
@@ -324,6 +327,7 @@ func (c *GNMI) handleSubscribeResponseUpdate(address string, response *gnmiLib.S
 
 		// Group metrics
 		for k, v := range fields {
+			fmt.Printf("DEBUG_DR3 %s\n", k)
 			key := k
 			if len(aliasPath) < len(key) && len(aliasPath) != 0 {
 				// This may not be an exact prefix, due to naming style
@@ -336,11 +340,13 @@ func (c *GNMI) handleSubscribeResponseUpdate(address string, response *gnmiLib.S
 				// If there are no elements skip the item; this would be an
 				// invalid message.
 				key = strings.TrimLeft(key, "/.")
+
 				if key == "" {
 					c.Log.Errorf("invalid empty path: %q", k)
 					continue
 				}
 			}
+			fmt.Printf("DEBUG_DR4 %s\n", key)
 
 			if err := grouper.Add(name, tags, timestamp, key, v); err != nil {
 				c.Log.Errorf("cannot add to grouper: %v", err)
