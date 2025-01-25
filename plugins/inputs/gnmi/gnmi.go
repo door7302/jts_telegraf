@@ -295,7 +295,7 @@ func (c *GNMI) handleSubscribeResponseUpdate(address string, response *gnmiLib.S
 			c.Log.Errorf("handling path %q failed: %v", response.Update.Prefix, err)
 		}
 	}
-	prefixTags["source"], _, _ = net.SplitHostPort(address)
+	prefixTags["device"], _, _ = net.SplitHostPort(address)
 	prefixTags["path"] = prefix
 
 	// Parse individual Update message and create measurements
@@ -437,16 +437,16 @@ func (c *GNMI) handleTelemetryField(update *gnmiLib.Update, tags map[string]stri
 		jsondata = val.JsonVal
 	}
 
-	name := strings.Replace(gpath, "-", "_", -1)
+	//name := strings.Replace(gpath, "-", "_", -1)
 	fields := make(map[string]interface{})
 	if value != nil {
-		fields[name] = value
+		fields[gpath] = value
 	} else if jsondata != nil {
 		if err := json.Unmarshal(jsondata, &value); err != nil {
 			c.acc.AddError(fmt.Errorf("failed to parse JSON value: %v", err))
 		} else {
 			flattener := jsonparser.JSONFlattener{Fields: fields}
-			if err := flattener.FullFlattenJSON(name, value, true, true); err != nil {
+			if err := flattener.FullFlattenJSON(gpath, value, true, true); err != nil {
 				c.acc.AddError(fmt.Errorf("failed to flatten JSON: %v", err))
 			}
 		}
@@ -486,7 +486,7 @@ func (c *GNMI) handlePath(gnmiPath *gnmiLib.Path, tags map[string]string, prefix
 
 		if tags != nil {
 			for key, val := range elem.Key {
-				key = strings.Replace(key, "-", "_", -1)
+				//key = strings.Replace(key, "-", "_", -1)
 
 				if c.LongTag {
 					tags[name+"/"+key] = val
