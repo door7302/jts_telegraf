@@ -400,12 +400,13 @@ func (c *GNMI) handleTelemetryField(update *gnmiLib.Update, tags map[string]stri
 	var jsondata []byte
 
 	// Make sure a value is actually set
+	if update.Val == nil && update.Val.Value == nil {
+		c.Log.Infof("Discarded empty value with path: %q", gpath)
+		return aliasPath, nil
+	}
 	if update.Val.Value == nil {
-		c.Log.Infof("Discarded empty or legacy type value with path: %q", gpath)
-		c.Log.Infof("update.Val: %v", update.Val)
-		c.Log.Infof("update.Val: %t", update.Val)
-		c.Log.Infof("update.Val.Value: %v", update.Val.Value)
-
+		// switch to legacy
+		c.Log.Infof("DEBUG: %+v", update.Val)
 		return aliasPath, nil
 	}
 
