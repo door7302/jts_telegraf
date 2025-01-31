@@ -406,6 +406,7 @@ func (c *GNMI) handleTelemetryField(update *gnmiLib.Update, tags map[string]stri
 	}
 	if update.Val.Value == nil {
 		update.Val.Value = (&gnmiLib.TypedValue_StringVal{StringVal: update.Val.String()})
+		c.Log.Infof("DEBUG %+v", update.Val)
 	}
 
 	switch val := update.Val.Value.(type) {
