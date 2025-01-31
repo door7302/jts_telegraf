@@ -405,9 +405,7 @@ func (c *GNMI) handleTelemetryField(update *gnmiLib.Update, tags map[string]stri
 		return aliasPath, nil
 	}
 	if update.Val.Value == nil {
-		// switch to legacy
-		c.Log.Infof("DEBUG: %+v", update.Val)
-		return aliasPath, nil
+		update.Val.Value = (&gnmiLib.TypedValue_StringVal{StringVal: update.Val.String()})
 	}
 
 	switch val := update.Val.Value.(type) {
