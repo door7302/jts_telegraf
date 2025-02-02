@@ -464,8 +464,8 @@ func (c *GNMI) handleTelemetryField(update *gnmiLib.Update, tags map[string]stri
 			jsondata = val.JsonIetfVal
 		case *gnmiLib.TypedValue_JsonVal:
 			jsondata = val.JsonVal
+		}
 	}
-	
 
 	//name := strings.Replace(gpath, "-", "_", -1)
 	fields := make(map[string]interface{})
