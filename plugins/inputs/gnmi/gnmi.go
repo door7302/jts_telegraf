@@ -387,6 +387,23 @@ func networkBytesToFloat32(data []byte) (float32, error) {
 	return result, nil
 }
 
+func bytesToFloat64(data []byte) (float64, error) {
+	if len(data) != 8 {
+		return 0, fmt.Errorf("invalid data length: expected 8 bytes, got %d", len(data))
+	}
+	bits := binary.LittleEndian.Uint64(data) // Change to BigEndian if needed
+	result := math.Float64frombits(bits)
+
+	// Check for overflow (infinite value) and replace with max/min float32 value
+	if math.IsInf(result, 1) {
+		return math.MaxFloat64, nil
+	} else if math.IsInf(result, -1) {
+		return -math.MaxFloat64, nil
+	}
+
+	return result, nil
+}
+
 // HandleTelemetryField and add it to a measurement
 func (c *GNMI) handleTelemetryField(update *gnmiLib.Update, tags map[string]string, prefix string) (string, map[string]interface{}) {
 	var err error
@@ -400,41 +417,54 @@ func (c *GNMI) handleTelemetryField(update *gnmiLib.Update, tags map[string]stri
 	var jsondata []byte
 
 	// Make sure a value is actually set
-	if update.Val == nil || update.Val.Value == nil {
-		c.Log.Infof("Discarded empty or legacy type value with path: %q", gpath)
+	if update.Val == nil {
+		c.Log.Infof("Discarded empty value with path: %q", gpath)
 		return aliasPath, nil
 	}
 
-	switch val := update.Val.Value.(type) {
-	case *gnmiLib.TypedValue_AsciiVal:
-		value = val.AsciiVal
-	case *gnmiLib.TypedValue_BoolVal:
-		value = val.BoolVal
-	case *gnmiLib.TypedValue_BytesVal:
-		if c.Bytes2float {
-			value, err = networkBytesToFloat32(val.BytesVal)
-			if err != nil {
-				c.Log.Errorf("unable to convert bytes array to float: %v", err)
-				// Keep as array of bytes
+	if update.Val.Value == nil {
+		// Handle new type DoubleVal supported by new gNMI proto
+		if len(update.Val.XXX_unrecognized) == 0 {
+			c.Log.Infof("Discarded empty value with path: %q", gpath)
+			return aliasPath, nil
+		}
+		value, err = bytesToFloat64(update.Val.XXX_unrecognized[1:])
+		if err != nil {
+			value = 0
+		}
+	} else {
+
+		switch val := update.Val.Value.(type) {
+		case *gnmiLib.TypedValue_AsciiVal:
+			value = val.AsciiVal
+		case *gnmiLib.TypedValue_BoolVal:
+			value = val.BoolVal
+		case *gnmiLib.TypedValue_BytesVal:
+			if c.Bytes2float {
+				value, err = networkBytesToFloat32(val.BytesVal)
+				if err != nil {
+					c.Log.Errorf("unable to convert bytes array to float: %v", err)
+					// Keep as array of bytes
+					value = val.BytesVal
+				}
+			} else {
 				value = val.BytesVal
 			}
-		} else {
-			value = val.BytesVal
+		case *gnmiLib.TypedValue_DecimalVal:
+			value = float64(val.DecimalVal.Digits) / math.Pow(10, float64(val.DecimalVal.Precision))
+		case *gnmiLib.TypedValue_FloatVal:
+			value = val.FloatVal
+		case *gnmiLib.TypedValue_IntVal:
+			value = val.IntVal
+		case *gnmiLib.TypedValue_StringVal:
+			value = val.StringVal
+		case *gnmiLib.TypedValue_UintVal:
+			value = val.UintVal
+		case *gnmiLib.TypedValue_JsonIetfVal:
+			jsondata = val.JsonIetfVal
+		case *gnmiLib.TypedValue_JsonVal:
+			jsondata = val.JsonVal
 		}
-	case *gnmiLib.TypedValue_DecimalVal:
-		value = float64(val.DecimalVal.Digits) / math.Pow(10, float64(val.DecimalVal.Precision))
-	case *gnmiLib.TypedValue_FloatVal:
-		value = val.FloatVal
-	case *gnmiLib.TypedValue_IntVal:
-		value = val.IntVal
-	case *gnmiLib.TypedValue_StringVal:
-		value = val.StringVal
-	case *gnmiLib.TypedValue_UintVal:
-		value = val.UintVal
-	case *gnmiLib.TypedValue_JsonIetfVal:
-		jsondata = val.JsonIetfVal
-	case *gnmiLib.TypedValue_JsonVal:
-		jsondata = val.JsonVal
 	}
 
 	//name := strings.Replace(gpath, "-", "_", -1)
