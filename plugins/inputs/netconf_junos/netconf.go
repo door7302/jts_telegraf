@@ -374,26 +374,27 @@ func (c *NETCONF) subscribeNETCONF(ctx context.Context, address string, u string
 									// otherwise check if it's a field to track
 									fval, ok := metricToSend[req.rpc][s]
 									if ok {
+										success := true
 										switch fval.fieldType {
 										case "int":
 											fval.currentValue, err = strconv.Atoi(value)
 											if err != nil {
-												// keep string as type in case of error
-												fval.currentValue = value
+												c.Log.Debugf("Unable to convert to integer: %v", err)
+												success = false
 											}
 											fval.visited = true
 										case "float":
 											fval.currentValue, err = strconv.ParseFloat(value, 64)
 											if err != nil {
-												// keep string as type in case of error
-												fval.currentValue = value
+												c.Log.Debugf("Unable to convert to float: %v", err)
+												success = false
 											}
 											fval.visited = true
 										case "epoch":
 											t, err := time.Parse(layout, value)
 											if err != nil {
-												// keep string as type in case of error
-												fval.currentValue = value
+												c.Log.Debugf("Unable to convert to epoch: %v", err)
+												success = false
 											} else {
 												fval.currentValue = t.Unix()
 											}
@@ -401,8 +402,8 @@ func (c *NETCONF) subscribeNETCONF(ctx context.Context, address string, u string
 										case "epoch_ms":
 											t, err := time.Parse(layout, value)
 											if err != nil {
-												// keep string as type in case of error
-												fval.currentValue = value
+												c.Log.Debugf("Unable to convert to epoch_ms: %v", err)
+												success = false
 											} else {
 												fval.currentValue = t.UnixMilli()
 											}
@@ -410,8 +411,8 @@ func (c *NETCONF) subscribeNETCONF(ctx context.Context, address string, u string
 										case "epoch_us":
 											t, err := time.Parse(layout, value)
 											if err != nil {
-												// keep string as type in case of error
-												fval.currentValue = value
+												c.Log.Debugf("Unable to convert to epoch_us: %v", err)
+												success = false
 											} else {
 												fval.currentValue = t.UnixMicro()
 											}
@@ -419,8 +420,8 @@ func (c *NETCONF) subscribeNETCONF(ctx context.Context, address string, u string
 										case "epoch_ns":
 											t, err := time.Parse(layout, value)
 											if err != nil {
-												// keep string as type in case of error
-												fval.currentValue = value
+												c.Log.Debugf("Unable to convert to epoch_ns: %v", err)
+												success = false
 											} else {
 												fval.currentValue = t.UnixNano()
 											}
@@ -430,7 +431,9 @@ func (c *NETCONF) subscribeNETCONF(ctx context.Context, address string, u string
 											fval.currentValue = value
 											fval.visited = true
 										}
-										metricToSend[req.rpc][s] = fval
+										if success {
+											metricToSend[req.rpc][s] = fval
+										}
 									}
 								}
 							}
