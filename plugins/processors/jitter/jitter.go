@@ -119,15 +119,15 @@ func (p *Jitter) Apply(metrics ...telegraf.Metric) []telegraf.Metric {
 					// check if an entry exists for this ID in the cache
 					if _, ok := p.cache[id]; ok {
 						delta := mymetric.Time().Sub(p.cache[id].tm).Seconds()
-						if delta >= float64(t_jitter_max.Seconds()+t_interval.Seconds()) {
+						if delta >= float64(t_interval.Seconds()+t_jitter_max.Seconds()) || delta <= float64(t_interval.Seconds()-t_jitter_max.Seconds()) {
 							newAlarm := metric.New("JITTER_MEASUREMENT", map[string]string{}, map[string]interface{}{"exception": delta}, mymetric.Time())
 							for k, v := range mymetric.Tags() {
 								newAlarm.AddTag(k, v)
 							}
 							alarmMetric = append(alarmMetric, newAlarm)
 							logPrintf("One metric exeeded the max jitter%v", id)
-							p.cache[id] = a
 						}
+						p.cache[id] = a
 					} else {
 						logPrintf("Creating cache entry for metric with hashid %v", id)
 						p.cache[id] = a
@@ -163,4 +163,3 @@ func init() {
 		return &Jitter{}
 	})
 }
-
