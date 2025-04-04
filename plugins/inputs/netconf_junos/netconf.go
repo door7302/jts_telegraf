@@ -171,8 +171,6 @@ func (c *NETCONF) Start(acc telegraf.Accumulator) error {
 			xpath = xpath[:len(xpath)-1]
 			field.shortName = shortName
 			field.fieldType = split_field[1]
-			fmt.Println(xpath)
-			fmt.Println(field.shortName)
 
 			// save child of the parent if new
 			exist := false
@@ -185,7 +183,7 @@ func (c *NETCONF) Start(acc telegraf.Accumulator) error {
 			if !exist {
 				parents[s.Rpc][parent] = append(parents[s.Rpc][parent], xpath)
 			}
-			fmt.Printf("xpath: %s\n", parents[s.Rpc][parent])
+			fmt.Printf("rpc %s - parent %s - parents: %s\n", s.Rpc, parent, parents[s.Rpc][parent])
 			// Update fields map
 			r.fields[xpath] = field
 		}
