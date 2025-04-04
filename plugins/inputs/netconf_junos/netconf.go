@@ -167,6 +167,10 @@ func (c *NETCONF) Start(acc telegraf.Accumulator) error {
 					shortName = e
 				}
 			}
+			if parent == "" {
+				parent = xpath
+			}
+
 			// Remove trailing /
 			xpath = xpath[:len(xpath)-1]
 			field.shortName = shortName
