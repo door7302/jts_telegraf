@@ -628,6 +628,8 @@ github.com/doclambda/protobufquery v0.0.0-20210317203640-88ffabe06a60/go.mod h1:
 github.com/docopt/docopt-go v0.0.0-20180111231733-ee0de3bc6815/go.mod h1:WwZ+bS3ebgob9U8Nd0kOddGdZWjyMGR8Wziv+TBNwSE=
 github.com/door7302/go-netconf-client v1.1.1 h1:TkXxsYy9LiDk8E86pBQIvupiXd6OSul60C+hSCZ1ggo=
 github.com/door7302/go-netconf-client v1.1.1/go.mod h1:RctuytStIzhled2uFXEcvy3880SokDH99n0lFEZjZJY=
+github.com/door7302/go-netconf-client v1.1.2 h1:EYABpxItA7EAvy4trusFbqw0GjwGYbZCuSlvdiQF2Mc=
+github.com/door7302/go-netconf-client v1.1.2/go.mod h1:RctuytStIzhled2uFXEcvy3880SokDH99n0lFEZjZJY=
 github.com/dropbox/godropbox v0.0.0-20180512210157-31879d3884b9 h1:NAvZb7gqQfLSNBPzVsvI7eZMosXtg2g2kxXrei90CtU=
 github.com/dropbox/godropbox v0.0.0-20180512210157-31879d3884b9/go.mod h1:glr97hP/JuXb+WMYCizc4PIFuzw1lCR97mwbe1VVXhQ=
 github.com/dstrand1/riemann-go-client v0.5.1-0.20211028194734-b5eb11fb5754 h1:aDtw0/++yjOoiXB9sldaFYW61mK3m6ia/wYWxPLrwYY=
