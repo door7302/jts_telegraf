@@ -344,6 +344,7 @@ func (c *NETCONF) subscribeNETCONF(ctx context.Context, address string, u string
 							}
 							// Remove trailing /
 							s = s[:len(s)-1]
+							fmt.Printf("DEBUG xpath %s\n", s)
 							// First check if xpath is a parent - if parent you need to prepare metric to send
 							pval, ok := allParents[req.rpc][s]
 							fmt.Printf("pval %v\n", pval)
