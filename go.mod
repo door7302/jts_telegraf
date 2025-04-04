@@ -211,7 +211,7 @@ require (
 	github.com/docker/distribution v2.7.1+incompatible // indirect
 	github.com/docker/go-connections v0.4.0 // indirect
 	github.com/docker/go-units v0.4.0 // indirect
-	github.com/door7302/go-netconf-client v1.1.1
+	github.com/door7302/go-netconf-client v1.1.2
 	github.com/eapache/go-resiliency v1.2.0 // indirect
 	github.com/eapache/go-xerial-snappy v0.0.0-20180814174437-776d5712da21 // indirect
 	github.com/eapache/queue v1.1.0 // indirect
@@ -373,4 +373,4 @@ replace github.com/cisco-ie/nx-telemetry-proto => github.com/sbezverk/nx-telemet
 // replaced due to open PR updating protobuf https://github.com/riemann/riemann-go-client/pull/27
 replace github.com/riemann/riemann-go-client => github.com/dstrand1/riemann-go-client v0.5.1-0.20211028194734-b5eb11fb5754
 
-replace github.com/openshift-telco/go-netconf-client => github.com/door7302/go-netconf-client v1.1.1
+replace github.com/openshift-telco/go-netconf-client => github.com/door7302/go-netconf-client v1.1.2
