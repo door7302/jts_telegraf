@@ -184,7 +184,7 @@ func (c *NETCONF) Start(acc telegraf.Accumulator) error {
 			if !exist {
 				if parent == "" {
 					// handle orphan field
-					parents[s.Rpc][parent] = append(parents[s.Rpc][xpath], "orphan")
+					parents[s.Rpc][xpath] = append(parents[s.Rpc][xpath], "orphan")
 				} else {
 					parents[s.Rpc][parent] = append(parents[s.Rpc][parent], xpath)
 				}
@@ -491,9 +491,9 @@ func (c *NETCONF) subscribeNETCONF(ctx context.Context, address string, u string
 												if err := grouper.Add(req.measurement, medTags, timestamp, fval.shortName, fval.currentValue); err != nil {
 													c.Log.Errorf("cannot add to grouper: %v", err)
 												}
-											} else {
-												metricToSend[req.rpc][s] = fval
 											}
+											metricToSend[req.rpc][s] = fval
+
 										}
 									}
 								}
