@@ -190,7 +190,6 @@ func (c *NETCONF) Start(acc telegraf.Accumulator) error {
 				}
 
 			}
-			fmt.Printf("rpc %s - parent %s - parents: %s\n", s.Rpc, parent, parents[s.Rpc][parent])
 			// Update fields map
 			r.fields[xpath] = field
 		}
@@ -346,10 +345,8 @@ func (c *NETCONF) subscribeNETCONF(ctx context.Context, address string, u string
 							}
 							// Remove trailing /
 							s = s[:len(s)-1]
-							fmt.Printf("DEBUG xpath %s\n", s)
 							// First check if xpath is a parent - if parent you need to prepare metric to send
 							pval, ok := allParents[req.rpc][s]
-							fmt.Printf("pval %v\n", pval)
 							// check for opahn
 							isOrphan := false
 							if ok {
@@ -367,9 +364,7 @@ func (c *NETCONF) subscribeNETCONF(ctx context.Context, address string, u string
 								for _, f := range pval {
 									// first check field has been visited or not
 									med, ok := metricToSend[req.rpc][f]
-									fmt.Printf("ok %v - med %v\n", ok, med)
 									if ok && med.visited {
-										fmt.Println("found field")
 										// create the metric
 										medTags := map[string]string{
 											"device": address,
@@ -391,9 +386,7 @@ func (c *NETCONF) subscribeNETCONF(ctx context.Context, address string, u string
 								}
 								// now reset all fields and tags associated to parent
 								for _, f := range pval {
-									fmt.Println("reset field")
 									med, ok := metricToSend[req.rpc][f]
-									fmt.Printf("reset ok %v - med %v\n", ok, med)
 									// this is a field
 									if ok {
 										med.currentValue = ""
@@ -410,17 +403,14 @@ func (c *NETCONF) subscribeNETCONF(ctx context.Context, address string, u string
 									}
 								}
 							} else {
-								fmt.Println("not a parent")
 								// if not parent check if it's a tag
 								tval, ok := tagTable[req.rpc][s]
-								fmt.Printf("tval %v\n", tval)
 								if ok {
 									tval.currentValue = value
 									tval.visited = true
 									tagTable[req.rpc][s] = tval
 
 								} else {
-									fmt.Println("not a tag")
 									// otherwise check if it's a field to track
 									fval, ok := metricToSend[req.rpc][s]
 									if ok {
