@@ -5,18 +5,19 @@ import (
 	"context"
 	"encoding/xml"
 	"fmt"
+	"io"
 	"math/rand"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/door7302/go-netconf-client/netconf"
+	"github.com/door7302/go-netconf-client/netconf/message"
 	"github.com/influxdata/telegraf"
 	"github.com/influxdata/telegraf/config"
 	"github.com/influxdata/telegraf/metric"
 	"github.com/influxdata/telegraf/plugins/inputs"
-	"github.com/openshift-telco/go-netconf-client/netconf"
-	"github.com/openshift-telco/go-netconf-client/netconf/message"
 	"golang.org/x/crypto/ssh"
 )
 
@@ -166,6 +167,7 @@ func (c *NETCONF) Start(acc telegraf.Accumulator) error {
 					shortName = e
 				}
 			}
+
 			// Remove trailing /
 			xpath = xpath[:len(xpath)-1]
 			field.shortName = shortName
@@ -180,9 +182,14 @@ func (c *NETCONF) Start(acc telegraf.Accumulator) error {
 				}
 			}
 			if !exist {
-				parents[s.Rpc][parent] = append(parents[s.Rpc][parent], xpath)
-			}
+				if parent == "" {
+					// handle orphan field
+					parents[s.Rpc][xpath] = append(parents[s.Rpc][xpath], "orphan")
+				} else {
+					parents[s.Rpc][parent] = append(parents[s.Rpc][parent], xpath)
+				}
 
+			}
 			// Update fields map
 			r.fields[xpath] = field
 		}
@@ -219,12 +226,15 @@ func (c *NETCONF) subscribeNETCONF(ctx context.Context, address string, u string
 		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
 	}
 
-	// Open SSH Session
-	session, err := netconf.DialSSH(fmt.Sprintf("%s:%d", address, 830), sshConfig)
+	// Open SSH Transport
+	transport, err := netconf.DialSSH(fmt.Sprintf("%s:%d", address, 830), sshConfig)
 	if err != nil {
-		return fmt.Errorf("unable to open Netconf session for address %s: %v", address, err)
+		return fmt.Errorf("unable to open Netconf transport for address %s: %v", address, err)
 	}
-	defer session.Close()
+	defer transport.Close()
+
+	// Create a NETCONF Session
+	session := netconf.NewSession(transport)
 
 	// Exchange capa... Just send HELLO RPC
 	capabilities := netconf.DefaultCapabilities
@@ -283,10 +293,36 @@ func (c *NETCONF) subscribeNETCONF(ctx context.Context, address string, u string
 				// Send RPC to router
 				c.Log.Debugf("time to to issue the rpc %s for device %s", req.rpc, address)
 				rpc := message.NewRPC(req.rpc)
+
+				startTimer := time.Now()
 				reply, err := session.SyncRPC(rpc, int32(60))
-				if err != nil || reply == nil || strings.Contains(reply.Data, "<rpc-error>") {
-					c.Log.Debugf("RPC error to Netconf device %s , rpc: %s", address, req.rpc)
-					continue
+				endTimer := time.Now()
+				durationTimer := endTimer.Sub(startTimer)
+
+				hasRpcError := false
+				if reply != nil && strings.Contains(reply.Data, "<rpc-error>") {
+					hasRpcError = true
+				}
+
+				if err != nil || reply == nil || hasRpcError {
+					if reply == nil {
+						c.Log.Debugf("RPC reply is empty to Netconf device %s , rpc: %s", address, req.rpc)
+						if durationTimer >= time.Duration(60)*time.Second {
+							c.Log.Errorf("Device %s aborted Netconf subscription", address)
+							return fmt.Errorf("%s aborted Netconf subscription", address)
+						}
+						continue
+					} else if hasRpcError {
+						c.Log.Debugf("RPC error to Netconf device %s , rpc: %s", address, req.rpc)
+						continue
+					}
+					if err != io.EOF && ctx.Err() == nil {
+						c.Log.Errorf("Device %s aborted Netconf subscription: %v", address, err)
+						return fmt.Errorf("%s aborted Netconf subscription: %v", address, err)
+					} else {
+						c.Log.Debugf("RPC unknown error to Netconf device %s , rpc: %s, err: %v", address, req.rpc, err)
+						continue
+					}
 				} else {
 					c.Log.Debugf("rpc-reply received for rpc %s and device %s", req.rpc, address)
 
@@ -318,6 +354,18 @@ func (c *NETCONF) subscribeNETCONF(ctx context.Context, address string, u string
 							s = s[:len(s)-1]
 							// First check if xpath is a parent - if parent you need to prepare metric to send
 							pval, ok := allParents[req.rpc][s]
+							// check for opahn
+							isOrphan := false
+							if ok {
+								if len(pval) > 0 {
+									if pval[0] == "orphan" {
+										// bypass processing of orphan field
+										ok = false
+										isOrphan = true
+									}
+								}
+							}
+
 							if ok {
 								// time to check all fields attached to the parent
 								for _, f := range pval {
@@ -362,7 +410,6 @@ func (c *NETCONF) subscribeNETCONF(ctx context.Context, address string, u string
 									}
 								}
 							} else {
-
 								// if not parent check if it's a tag
 								tval, ok := tagTable[req.rpc][s]
 								if ok {
@@ -432,7 +479,19 @@ func (c *NETCONF) subscribeNETCONF(ctx context.Context, address string, u string
 											fval.visited = true
 										}
 										if success {
+											// check if orphan first
+											if isOrphan {
+												// Directly send the value
+												medTags := map[string]string{
+													"device": address,
+												}
+												// add metric to groupper
+												if err := grouper.Add(req.measurement, medTags, timestamp, fval.shortName, fval.currentValue); err != nil {
+													c.Log.Errorf("cannot add to grouper: %v", err)
+												}
+											}
 											metricToSend[req.rpc][s] = fval
+
 										}
 									}
 								}

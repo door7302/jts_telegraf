@@ -1,6 +1,6 @@
 FROM golang:alpine as builder
 ARG LDFLAGS=""
-ARG VERSION="1.0.13"
+ARG VERSION="1.0.14"
 
 RUN apk --update --no-cache add git build-base gcc
 
@@ -10,7 +10,7 @@ WORKDIR /build
 RUN go build -ldflags "${LDFLAGS} -X main.version=${VERSION}" ./cmd/telegraf
 
 FROM alpine:latest
-LABEL version="1.0.13"
+LABEL version="1.0.14"
 
 RUN apk update --no-cache && \
     adduser -S -D -H -h / telegraf
