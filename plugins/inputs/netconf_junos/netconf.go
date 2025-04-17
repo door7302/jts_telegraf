@@ -311,6 +311,7 @@ func (c *NETCONF) subscribeNETCONF(ctx context.Context, address string, u string
 						continue
 					}
 					if err != io.EOF && ctx.Err() == nil {
+						c.Log.Debugf("RPC aborted Netconf subscription: %v", err)
 						return fmt.Errorf("aborted Netconf subscription: %v", err)
 					} else {
 						c.Log.Debugf("RPC unknown error to Netconf device %s , rpc: %s, err: %v", address, req.rpc, err)
