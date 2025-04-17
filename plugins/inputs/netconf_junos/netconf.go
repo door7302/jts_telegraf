@@ -308,8 +308,8 @@ func (c *NETCONF) subscribeNETCONF(ctx context.Context, address string, u string
 					if reply == nil {
 						c.Log.Debugf("RPC reply is empty to Netconf device %s , rpc: %s", address, req.rpc)
 						if durationTimer >= time.Duration(60)*time.Second {
-							c.Log.Errorf("Device aborted Netconf subscription")
-							return fmt.Errorf("aborted Netconf subscription")
+							c.Log.Errorf("Device %s aborted Netconf subscription", address)
+							return fmt.Errorf("%s aborted Netconf subscription", address)
 						}
 						continue
 					} else if hasRpcError {
@@ -317,8 +317,8 @@ func (c *NETCONF) subscribeNETCONF(ctx context.Context, address string, u string
 						continue
 					}
 					if err != io.EOF && ctx.Err() == nil {
-						c.Log.Errorf("Device aborted Netconf subscription: %v", err)
-						return fmt.Errorf("aborted Netconf subscription: %v", err)
+						c.Log.Errorf("Device %s aborted Netconf subscription: %v", address, err)
+						return fmt.Errorf("%s aborted Netconf subscription: %v", address, err)
 					} else {
 						c.Log.Debugf("RPC unknown error to Netconf device %s , rpc: %s, err: %v", address, req.rpc, err)
 						continue
