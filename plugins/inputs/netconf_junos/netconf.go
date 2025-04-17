@@ -173,9 +173,9 @@ func (c *NETCONF) Start(acc telegraf.Accumulator) error {
 			field.shortName = shortName
 			field.fieldType = split_field[1]
 
-			// Handle empty parent and set is as orphan
+			// Handle empty parent and set is as parent of itself
 			if parent == "" {
-				parent = "orphan"
+				parent = xpath
 			}
 
 			// save child of the parent if new
