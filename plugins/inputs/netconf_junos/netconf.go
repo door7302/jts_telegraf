@@ -173,11 +173,6 @@ func (c *NETCONF) Start(acc telegraf.Accumulator) error {
 			field.shortName = shortName
 			field.fieldType = split_field[1]
 
-			// Handle empty parent and set is as parent of itself
-			if parent == "" {
-				parent = xpath
-			}
-
 			// save child of the parent if new
 			exist := false
 			for _, e := range parents[s.Rpc][parent] {
@@ -187,7 +182,13 @@ func (c *NETCONF) Start(acc telegraf.Accumulator) error {
 				}
 			}
 			if !exist {
-				parents[s.Rpc][parent] = append(parents[s.Rpc][parent], xpath)
+				if parent == "" {
+					// handle orphan field
+					parents[s.Rpc][parent] = append(parents[s.Rpc][xpath], "orphan")
+				} else {
+					parents[s.Rpc][parent] = append(parents[s.Rpc][parent], xpath)
+				}
+
 			}
 			fmt.Printf("rpc %s - parent %s - parents: %s\n", s.Rpc, parent, parents[s.Rpc][parent])
 			// Update fields map
@@ -348,6 +349,18 @@ func (c *NETCONF) subscribeNETCONF(ctx context.Context, address string, u string
 							// First check if xpath is a parent - if parent you need to prepare metric to send
 							pval, ok := allParents[req.rpc][s]
 							fmt.Printf("pval %v\n", pval)
+							// check for opahn
+							isOrphan := false
+							if ok {
+								if len(pval) > 0 {
+									if pval[0] == "orphan" {
+										// bypass processing of orphan field
+										ok = false
+										isOrphan = true
+									}
+								}
+							}
+
 							if ok {
 								// time to check all fields attached to the parent
 								for _, f := range pval {
@@ -468,8 +481,19 @@ func (c *NETCONF) subscribeNETCONF(ctx context.Context, address string, u string
 											fval.visited = true
 										}
 										if success {
-											fmt.Printf("metric to send %v\n", fval)
-											metricToSend[req.rpc][s] = fval
+											// check if orphan first
+											if isOrphan {
+												// Directly send the value
+												medTags := map[string]string{
+													"device": address,
+												}
+												// add metric to groupper
+												if err := grouper.Add(req.measurement, medTags, timestamp, fval.shortName, fval.currentValue); err != nil {
+													c.Log.Errorf("cannot add to grouper: %v", err)
+												}
+											} else {
+												metricToSend[req.rpc][s] = fval
+											}
 										}
 									}
 								}
