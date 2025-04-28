@@ -293,12 +293,7 @@ func (c *NETCONF) subscribeNETCONF(ctx context.Context, address string, u string
 				// Send RPC to router
 				c.Log.Debugf("time to to issue the rpc %s for device %s", req.rpc, address)
 				rpc := message.NewRPC(req.rpc)
-
-				startTimer := time.Now()
 				reply, err := session.SyncRPC(rpc, int32(60))
-				endTimer := time.Now()
-				durationTimer := endTimer.Sub(startTimer)
-
 				hasRpcError := false
 				if reply != nil && strings.Contains(reply.Data, "<rpc-error>") {
 					hasRpcError = true
@@ -306,12 +301,9 @@ func (c *NETCONF) subscribeNETCONF(ctx context.Context, address string, u string
 
 				if err != nil || reply == nil || hasRpcError {
 					if reply == nil {
-						c.Log.Debugf("RPC reply is empty to Netconf device %s , rpc: %s", address, req.rpc)
-						if durationTimer >= time.Duration(60)*time.Second {
-							c.Log.Errorf("Device %s aborted Netconf subscription", address)
-							return fmt.Errorf("%s aborted Netconf subscription", address)
-						}
-						continue
+						c.Log.Errorf("Device %s aborted Netconf subscription", address)
+						return fmt.Errorf("%s aborted Netconf subscription", address)
+
 					} else if hasRpcError {
 						c.Log.Debugf("RPC error to Netconf device %s , rpc: %s", address, req.rpc)
 						continue
