@@ -284,7 +284,7 @@ func (c *GNMI) handleSubscribeResponseUpdate(address string, response *gnmiLib.S
 				if result == nil {
 					prefixTags["_component_id"] = fmt.Sprint(juniper_header.GetComponentId())
 					prefixTags["component"] = fmt.Sprint(juniper_header.GetComponent())
-					//  prefixTags["sub_component_id"] = fmt.Sprint(juniper_header.GetSubComponentId())
+					prefixTags["_subcomponent_id"] = fmt.Sprint(juniper_header.GetSubComponentId())
 				}
 			}
 		}
