@@ -333,6 +333,7 @@ func (c *GNMI) handleSubscribeResponseUpdate(address string, response *gnmiLib.S
 				idx := strings.Index(k, ":")
 				if idx != -1 {
 					k = k[idx+1:]
+					c.Log.Debugf("Strip Origin applied - new tag name is: %s", k)
 				}
 			}
 
@@ -526,22 +527,24 @@ func (c *GNMI) handlePath(gnmiPath *gnmiLib.Path, tags map[string]string, prefix
 		if tags != nil {
 			for key, val := range elem.Key {
 				//key = strings.Replace(key, "-", "_", -1)
+				longNameTag := name + "/" + key
 
 				// Strip origin from tag name
 				if c.StripOrigin {
-					idx := strings.Index(key, ":")
+					idx := strings.Index(longNameTag, ":")
 					if idx != -1 {
-						key = key[idx+1:]
+						longNameTag = longNameTag[idx+1:]
+						c.Log.Debugf("Strip Origin applied - new tag name is: %s", longNameTag)
 					}
 				}
 
 				if c.LongTag {
-					tags[name+"/"+key] = val
+					tags[longNameTag] = val
 				} else {
 
 					// Use short-form of key if possible
 					if _, exists := tags[key]; exists {
-						tags[name+"/"+key] = val
+						tags[longNameTag] = val
 					} else {
 						tags[key] = val
 					}
