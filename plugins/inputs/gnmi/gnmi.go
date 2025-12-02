@@ -44,7 +44,7 @@ type GNMI struct {
 	LongTag            bool `toml:"long_tag"`
 	LongField          bool `toml:"long_field"`
 	Bytes2float        bool `toml:"bytes2float"`
-	StripOrigin        bool `toml:"striporigin"`
+	StripOrigin        bool `toml:"strip_origin"`
 	CheckJnprExtension bool `toml:"check_jnpr_extension"`
 	// gNMI target credentials
 	Username string
