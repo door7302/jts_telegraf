@@ -501,7 +501,7 @@ func (c *GNMI) handlePath(gnmiPath *gnmiLib.Path, tags map[string]string, prefix
 	builder := bytes.NewBufferString(prefix)
 
 	// Prefix with origin
-	if len(gnmiPath.Origin) > 0 {
+	if len(gnmiPath.Origin) > 0 && !c.StripOrigin {
 		if _, err := builder.WriteString(gnmiPath.Origin); err != nil {
 			return "", "", err
 		}
