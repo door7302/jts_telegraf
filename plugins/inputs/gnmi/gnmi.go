@@ -333,7 +333,9 @@ func (c *GNMI) handleSubscribeResponseUpdate(address string, response *gnmiLib.S
 				idx := strings.Index(k, ":")
 				if idx != -1 {
 					k = k[idx+1:]
-					c.Log.Debugf("Strip Origin applied - new tag name is: %s", k)
+					c.Log.Debugf("Strip Origin applied - new field name is: %s", k)
+				} else {
+					c.Log.Debugf("Strip Origin applied - keep original field name: %s", k)
 				}
 			}
 
@@ -535,6 +537,8 @@ func (c *GNMI) handlePath(gnmiPath *gnmiLib.Path, tags map[string]string, prefix
 					if idx != -1 {
 						longNameTag = longNameTag[idx+1:]
 						c.Log.Debugf("Strip Origin applied - new tag name is: %s", longNameTag)
+					} else {
+						c.Log.Debugf("Strip Origin applied - keep original tag name: %s", longNameTag)
 					}
 				}
 
