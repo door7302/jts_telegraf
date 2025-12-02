@@ -44,6 +44,7 @@ type GNMI struct {
 	LongTag            bool `toml:"long_tag"`
 	LongField          bool `toml:"long_field"`
 	Bytes2float        bool `toml:"bytes2float"`
+	StripOrigin        bool `toml:"strip_origin"`
 	CheckJnprExtension bool `toml:"check_jnpr_extension"`
 	// gNMI target credentials
 	Username string
@@ -326,6 +327,15 @@ func (c *GNMI) handleSubscribeResponseUpdate(address string, response *gnmiLib.S
 		// Group metrics
 		for k, v := range fields {
 			// Save long key in case of option
+
+			// Strip origin from field name
+			if c.StripOrigin {
+				idx := strings.Index(k, ":")
+				if idx != -1 {
+					k = k[idx+1:]
+				}
+			}
+
 			longKey := k
 			key := k
 			if len(aliasPath) < len(key) && len(aliasPath) != 0 {
@@ -359,7 +369,6 @@ func (c *GNMI) handleSubscribeResponseUpdate(address string, response *gnmiLib.S
 
 		lastAliasPath = aliasPath
 	}
-
 	// Add grouped measurements
 	for _, metricToAdd := range grouper.Metrics() {
 		c.acc.AddMetric(metricToAdd)
@@ -517,6 +526,14 @@ func (c *GNMI) handlePath(gnmiPath *gnmiLib.Path, tags map[string]string, prefix
 		if tags != nil {
 			for key, val := range elem.Key {
 				//key = strings.Replace(key, "-", "_", -1)
+
+				// Strip origin from tag name
+				if c.StripOrigin {
+					idx := strings.Index(key, ":")
+					if idx != -1 {
+						key = key[idx+1:]
+					}
+				}
 
 				if c.LongTag {
 					tags[name+"/"+key] = val
