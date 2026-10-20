@@ -32,6 +32,9 @@ type NETCONF struct {
 	Username string `toml:"username"`
 	Password string `toml:"password"`
 
+	// Use the full xpath instead of the last node as tag/field name
+	FullXpath bool `toml:"full_xpath"`
+
 	TimeLayout string `toml:"time_layout"`
 
 	// Redial
@@ -144,7 +147,11 @@ func (c *NETCONF) Start(acc telegraf.Accumulator) error {
 					field.tags = append(field.tags, xpath+attribut)
 
 					// Save tag
-					tags[xpath+attribut] = tagEntry{shortName: attribut}
+					tagName := attribut
+					if c.FullXpath {
+						tagName = xpath + attribut
+					}
+					tags[xpath+attribut] = tagEntry{shortName: tagName}
 
 					// save child of the parent if new
 					_, ok := parents[s.Rpc][parent]
@@ -170,7 +177,11 @@ func (c *NETCONF) Start(acc telegraf.Accumulator) error {
 
 			// Remove trailing /
 			xpath = xpath[:len(xpath)-1]
-			field.shortName = shortName
+			if c.FullXpath {
+				field.shortName = xpath
+			} else {
+				field.shortName = shortName
+			}
 			field.fieldType = split_field[1]
 
 			// save child of the parent if new
@@ -539,6 +550,10 @@ const sampleConfig = `
 
   ## redial in case of failures after
   redial = "10s"
+
+  ## Use the full xpath as tag and field name instead of the last node only
+  ## e.g. /interface-information/physical-interface/speed instead of speed - default is false
+  # full_xpath = false
 
   ## Time Layout for epoch convertion - specify a sample Date/Time layout - default layout is the following:
   time_layout = "2006-01-02 15:04:05 MST"
